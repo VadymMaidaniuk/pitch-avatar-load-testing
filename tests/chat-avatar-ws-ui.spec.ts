@@ -46,6 +46,7 @@ test('UI send yields assistant reply on haproxy WS (no bubble wait)', async ({ p
   const question = buildQuestion(1);
   await input.fill(question);
   await expect(sendButton).toBeEnabled({ timeout: 10_000 });
+  const sendTs = Date.now();
   await sendButton.click();
   await expect(userBubble(page, question)).toBeVisible({ timeout: 20_000 });
 
@@ -77,6 +78,9 @@ test('UI send yields assistant reply on haproxy WS (no bubble wait)', async ({ p
   if (result.frame.createdAt) {
     expect(new Date(result.frame.createdAt).toString()).not.toBe('Invalid Date');
   }
+  const receivedTs = Date.now();
+  const latencyMs = receivedTs - sendTs;
+  console.log(`[WS] assistant reply latency ${latencyMs} ms`);
 
   const scrUserID = (() => {
     try {
@@ -95,6 +99,9 @@ test('UI send yields assistant reply on haproxy WS (no bubble wait)', async ({ p
         question,
         wsUrl: result.url,
         event: result.frame,
+        sendTimestamp: sendTs,
+        receivedTimestamp: receivedTs,
+        latencyMs,
         seenWs: await page.evaluate(() => (window as any).__wsUrls || []),
         capturedFramesSample: await page.evaluate(() => (window as any).__wsFrames?.slice(0, 5) || []),
       }),
