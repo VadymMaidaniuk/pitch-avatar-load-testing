@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { UI_ASSIST_TIMEOUT_MS, UI_USERS } from './chatConfig';
 import { openChat, buildQuestion, userBubble } from './chatShared';
 
-async function runScenario(page, userId: number) {
+async function runScenario(page: Page, userId: number) {
   const timeout = Math.max(UI_ASSIST_TIMEOUT_MS + 60_000, 120_000);
   test.setTimeout(timeout);
 

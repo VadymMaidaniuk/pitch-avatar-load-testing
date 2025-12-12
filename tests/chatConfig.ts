@@ -5,10 +5,10 @@ const intEnv = (name: string, fallback?: number): number | undefined => {
   return fallback;
 };
 
-export const CHAT_URL = process.env.CHAT_URL ?? 'https://slides.pitchavatar.com/cuofx';
+export const CHAT_URL = process.env.CHAT_URL ?? 'https://slides.pitchavatar.com/osnol';
 export const API_BASE_URL = process.env.API_BASE_URL ?? 'https://api.pitchavatar.com';
 export const WS_BASE_URL = process.env.WS_BASE_URL ?? 'wss://haproxy-prod.pitchavatar.com';
-export const SCR_SHORT_LINK = process.env.SCR_SHORT_LINK ?? 'cuofx';
+export const SCR_SHORT_LINK = process.env.SCR_SHORT_LINK ?? 'osnol';
 
 export const UI_USERS = intEnv('CHAT_UI_USERS', intEnv('CHAT_TEST_USERS', 1)) ?? 1;
 
