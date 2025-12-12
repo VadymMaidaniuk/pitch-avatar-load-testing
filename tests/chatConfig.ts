@@ -11,7 +11,6 @@ export const WS_BASE_URL = process.env.WS_BASE_URL ?? 'wss://haproxy-prod.pitcha
 export const SCR_SHORT_LINK = process.env.SCR_SHORT_LINK ?? 'cuofx';
 
 export const UI_USERS = intEnv('CHAT_UI_USERS', intEnv('CHAT_TEST_USERS', 1)) ?? 1;
-export const WS_USERS = intEnv('CHAT_WS_USERS', 10) ?? 10;
 
 export const UI_ASSIST_TIMEOUT_MS = intEnv('CHAT_ASSIST_TIMEOUT_MS', 60_000) ?? 60_000;
 export const WS_ASSIST_TIMEOUT_MS = intEnv('CHAT_WS_ASSIST_TIMEOUT_MS', 45_000) ?? 45_000;

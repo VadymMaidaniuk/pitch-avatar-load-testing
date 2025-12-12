@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { UI_ASSIST_TIMEOUT_MS } from './chatConfig';
+import { UI_ASSIST_TIMEOUT_MS, UI_USERS } from './chatConfig';
 import { openChat, buildQuestion, userBubble } from './chatShared';
 
-test('UI send yields assistant reply on haproxy WS (no bubble wait)', async ({ page }) => {
-  test.setTimeout(Math.max(UI_ASSIST_TIMEOUT_MS + 60_000, 120_000));
+async function runScenario(page, userId: number) {
+  const timeout = Math.max(UI_ASSIST_TIMEOUT_MS + 60_000, 120_000);
+  test.setTimeout(timeout);
 
   // Instrument WS before navigation so we capture frames from the in-page socket.
   await page.addInitScript(() => {
@@ -43,7 +44,7 @@ test('UI send yields assistant reply on haproxy WS (no bubble wait)', async ({ p
   });
 
   const { input, sendButton } = await openChat(page);
-  const question = buildQuestion(1);
+  const question = buildQuestion(userId);
   await input.fill(question);
   await expect(sendButton).toBeEnabled({ timeout: 10_000 });
   const sendTs = Date.now();
@@ -107,4 +108,10 @@ test('UI send yields assistant reply on haproxy WS (no bubble wait)', async ({ p
       }),
     ),
   });
-});
+}
+
+for (let userId = 1; userId <= UI_USERS; userId += 1) {
+  test(`UI+WS user #${userId} assistant reply on WS`, async ({ page }) => {
+    await runScenario(page, userId);
+  });
+}
