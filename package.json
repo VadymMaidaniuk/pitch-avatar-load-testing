@@ -1,0 +1,23 @@
+{
+  "name": "testpitch-avatar-load-testing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test tests/chat-avatar-load.spec.ts",
+    "test:ui-ws": "playwright test tests/chat-avatar-ws-ui.spec.ts",
+    "test:ws": "playwright test tests/chat-avatar-ws-load.spec.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.9.1"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}
