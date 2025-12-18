@@ -29,12 +29,32 @@ async function sendAndMeasure(page: import("@playwright/test").Page, userId: num
   await expect(userBubble(page, question)).toBeVisible({ timeout: 20_000 });
 
   const newBotBubble = assistantBubbleLocator.nth(botCountBefore);
+  const waitForAssistantText = async () => {
+    const deadline = Date.now() + UI_ASSIST_TIMEOUT_MS;
+    let lastText = '';
+    const stripLabel = (text: string) =>
+      text.replace(/^chat avatar\s*(\[[^\]]*])?\s*/i, '').trim();
+    while (Date.now() < deadline) {
+      const raw = await newBotBubble.innerText({ timeout: 5_000 }).catch(() => '');
+      const cleaned = raw.replace(/\s+/g, ' ').trim();
+      const textOnly = stripLabel(cleaned);
+      lastText = cleaned || lastText;
+      if (textOnly) {
+        return textOnly;
+      }
+      await page.waitForTimeout(500);
+    }
+    throw new Error(
+      `Assistant reply text not received in ${UI_ASSIST_TIMEOUT_MS}ms (last text: "${lastText}")`,
+    );
+  };
+
   try {
     await expect(newBotBubble).toBeVisible({ timeout: UI_ASSIST_TIMEOUT_MS });
-    await expect(newBotBubble).toContainText(/\S/, { timeout: UI_ASSIST_TIMEOUT_MS });
+    const replyText = await waitForAssistantText();
     duration = Date.now() - start;
     status = "ok";
-    console.log(`[VU ${userId}] reply in ${duration} ms`);
+    console.log(`[VU ${userId}] reply in ${duration} ms: ${replyText.slice(0, 120)}`);
   } catch (err: any) {
     duration = Date.now() - start;
     status = err?.message?.toString().includes("Timeout") ? "timeout" : "error";
