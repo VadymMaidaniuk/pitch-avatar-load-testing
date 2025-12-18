@@ -1,4 +1,29 @@
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
 import { defineConfig, devices } from '@playwright/test';
+
+// Load env file before reading process.env. Priority:
+// 1) DOTENV_CONFIG_PATH
+// 2) .env.<CHAT_ENV>
+// 3) .env
+(function loadEnv() {
+  const cwd = __dirname;
+  const envName = process.env.CHAT_ENV || process.env.NODE_ENV;
+  const candidates = [
+    process.env.DOTENV_CONFIG_PATH,
+    envName ? `.env.${envName}` : undefined,
+    '.env',
+  ].filter(Boolean) as string[];
+
+  for (const rel of candidates) {
+    const full = path.resolve(cwd, rel);
+    if (fs.existsSync(full)) {
+      dotenv.config({ path: full });
+      break;
+    }
+  }
+})();
 
 const envWorkers = (() => {
   const raw = process.env.CHAT_WORKERS;

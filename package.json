@@ -6,7 +6,10 @@
   "scripts": {
     "test": "playwright test",
     "test:ui": "playwright test tests/chat-avatar-load.spec.ts",
-    "test:ui-ws": "playwright test tests/chat-avatar-ws-ui.spec.ts"
+    "test:ui-ws": "playwright test tests/chat-avatar-ws-ui.spec.ts",
+    "test:dev": "cross-env DOTENV_CONFIG_PATH=.env.dev CHAT_ENV=dev playwright test",
+    "test:stage": "cross-env DOTENV_CONFIG_PATH=.env.stage CHAT_ENV=stage playwright test",
+    "test:prod": "cross-env DOTENV_CONFIG_PATH=.env.prod CHAT_ENV=prod playwright test"
   },
   "keywords": [],
   "author": "",
@@ -14,7 +17,9 @@
   "type": "commonjs",
   "devDependencies": {
     "@playwright/test": "^1.56.1",
-    "@types/node": "^24.9.1"
+    "@types/node": "^24.9.1",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.5"
   },
   "dependencies": {
     "ws": "^8.18.3"
