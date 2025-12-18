@@ -34,12 +34,13 @@ async function sendAndMeasure(page: import("@playwright/test").Page, userId: num
     let lastText = '';
     const stripLabel = (text: string) =>
       text.replace(/^chat avatar\s*(\[[^\]]*])?\s*/i, '').trim();
+    const stripTimestamp = (text: string) => text.replace(/\b\d{1,2}:\d{2}\b/g, '').trim();
     while (Date.now() < deadline) {
       const raw = await newBotBubble.innerText({ timeout: 5_000 }).catch(() => '');
       const cleaned = raw.replace(/\s+/g, ' ').trim();
-      const textOnly = stripLabel(cleaned);
+      const textOnly = stripTimestamp(stripLabel(cleaned));
       lastText = cleaned || lastText;
-      if (textOnly) {
+      if (textOnly && /[A-Za-z]/.test(textOnly) && textOnly.length >= 4) {
         return textOnly;
       }
       await page.waitForTimeout(500);
