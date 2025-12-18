@@ -35,13 +35,18 @@ async function sendAndMeasure(page: import("@playwright/test").Page, userId: num
     const stripLabel = (text: string) =>
       text.replace(/^chat avatar\s*(\[[^\]]*])?\s*/i, '').trim();
     const stripTimestamp = (text: string) => text.replace(/\b\d{1,2}:\d{2}\b/g, '').trim();
+    const cleanText = (text: string) => stripTimestamp(stripLabel(text.replace(/\s+/g, ' ').trim()));
+    const hasContent = (text: string) => text && /[A-Za-z]/.test(text) && text.length >= 4;
     while (Date.now() < deadline) {
-      const raw = await newBotBubble.innerText({ timeout: 5_000 }).catch(() => '');
-      const cleaned = raw.replace(/\s+/g, ' ').trim();
-      const textOnly = stripTimestamp(stripLabel(cleaned));
-      lastText = cleaned || lastText;
-      if (textOnly && /[A-Za-z]/.test(textOnly) && textOnly.length >= 4) {
-        return textOnly;
+      const currentCount = await assistantBubbleLocator.count();
+      for (let idx = botCountBefore; idx < currentCount; idx += 1) {
+        const candidate = assistantBubbleLocator.nth(idx);
+        const raw = await candidate.innerText({ timeout: 2_000 }).catch(() => '');
+        const textOnly = cleanText(raw);
+        if (textOnly) lastText = textOnly;
+        if (hasContent(textOnly)) {
+          return textOnly;
+        }
       }
       await page.waitForTimeout(500);
     }
