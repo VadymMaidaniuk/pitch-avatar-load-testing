@@ -74,13 +74,18 @@ export function buildQuestion(userId: number): string {
   return `${base} [${salt}]`;
 }
 
+const chatContainer = (page: Page) =>
+  page.locator('section, div, aside').filter({ has: page.locator(SELECTORS.messageInput) }).first();
+
 export function userBubble(page: Page, text: string) {
-  const list = page.locator(SELECTORS.messageList).first();
+  const container = chatContainer(page);
+  const list = container.locator(SELECTORS.messageList).first();
   return list.locator(`li[type="sent"]:has-text("${text}"), li:has-text("${text}")`).first();
 }
 
 export function assistantBubbles(page: Page) {
-  const list = page.locator(SELECTORS.messageList).first();
+  const container = chatContainer(page);
+  const list = container.locator(SELECTORS.messageList).first();
   return list.locator(SELECTORS.assistantBubble);
 }
 
@@ -102,7 +107,8 @@ export async function openChat(page: Page) {
   await expect(input).toBeEnabled({ timeout: 60_000 });
 
   const sendButton = input.locator('xpath=ancestor::form[1]').locator(SELECTORS.sendButton).first();
-  const messageList = page.locator(SELECTORS.messageList).first();
+  const container = chatContainer(page);
+  const messageList = container.locator(SELECTORS.messageList).first();
   await expect(messageList).toBeVisible({ timeout: 30_000 });
 
   return { input, sendButton, messageList };
