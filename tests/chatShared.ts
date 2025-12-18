@@ -3,10 +3,12 @@ import { CHAT_URL } from './chatConfig';
 
 export const SELECTORS = {
   startButton: 'button[title="Tap to start"], button:has(svg[data-icon="play"])',
-  messageInput: 'textarea[placeholder="Send a message"]',
-  sendButton: 'form button.sc-izQBue',
-  messageList: 'ul.sc-fKWMtX',
-  assistantBubble: 'ul.sc-fKWMtX li[type="assistant"]',
+  messageInput: 'textarea[placeholder*="message" i], textarea[aria-label*="message" i]',
+  sendButton:
+    'button[type="submit"], button[aria-label*="send" i], button:has(svg), button:has(img[alt*="send" i])',
+  messageList: 'ul, [role="list"]',
+  assistantBubble:
+    'li[type="assistant"], li[data-author="assistant"], li[aria-label*="assistant" i], [role="listitem"][data-author="assistant"], li:has-text("Chat Avatar")',
 };
 
 const QUESTION_POOL: string[] = [
@@ -73,11 +75,13 @@ export function buildQuestion(userId: number): string {
 }
 
 export function userBubble(page: Page, text: string) {
-  return page.locator(`ul.sc-fKWMtX li[type="sent"]:has-text("${text}")`).first();
+  const list = page.locator(SELECTORS.messageList).first();
+  return list.locator(`li[type="sent"]:has-text("${text}"), li:has-text("${text}")`).first();
 }
 
 export function assistantBubbles(page: Page) {
-  return page.locator(SELECTORS.assistantBubble);
+  const list = page.locator(SELECTORS.messageList).first();
+  return list.locator(SELECTORS.assistantBubble);
 }
 
 export async function openChat(page: Page) {
@@ -93,13 +97,13 @@ export async function openChat(page: Page) {
     }
   }
 
-  const input = page.locator(SELECTORS.messageInput);
+  const input = page.locator(SELECTORS.messageInput).first();
   await expect(input).toBeVisible({ timeout: 60_000 });
   await expect(input).toBeEnabled({ timeout: 60_000 });
 
-  const sendButton = page.locator(SELECTORS.sendButton);
-  const messageList = page.locator(SELECTORS.messageList);
-  await messageList.waitFor({ state: 'visible', timeout: 30_000 });
+  const sendButton = input.locator('xpath=ancestor::form[1]').locator(SELECTORS.sendButton).first();
+  const messageList = page.locator(SELECTORS.messageList).first();
+  await expect(messageList).toBeVisible({ timeout: 30_000 });
 
   return { input, sendButton, messageList };
 }
