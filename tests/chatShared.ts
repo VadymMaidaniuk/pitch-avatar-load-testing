@@ -92,16 +92,6 @@ export function assistantBubbles(page: Page) {
 export async function openChat(page: Page) {
   await page.goto(CHAT_URL, { waitUntil: 'domcontentloaded', timeout: 120_000 });
 
-  const tapToStart = page.locator('button[title="Tap to start"]').first();
-  if (await tapToStart.isVisible().catch(() => false)) {
-    await tapToStart.click();
-  } else {
-    const genericPlay = page.locator(SELECTORS.startButton).first();
-    if (await genericPlay.isVisible().catch(() => false)) {
-      await genericPlay.click();
-    }
-  }
-
   const input = page.locator(SELECTORS.messageInput).first();
   await expect(input).toBeVisible({ timeout: 60_000 });
   await expect(input).toBeEnabled({ timeout: 60_000 });
