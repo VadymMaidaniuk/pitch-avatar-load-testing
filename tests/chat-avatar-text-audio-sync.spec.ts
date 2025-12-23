@@ -16,9 +16,20 @@ const intEnv = (name: string, fallback: number): number => {
   return fallback;
 };
 
+const floatEnv = (name: string, fallback: number): number => {
+  const raw = process.env[name];
+  const parsed = raw ? parseFloat(raw) : NaN;
+  if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  return fallback;
+};
+
 const AUDIO_TIMEOUT_MS = intEnv('CHAT_AUDIO_TIMEOUT_MS', UI_ASSIST_TIMEOUT_MS);
 const AUDIO_PLAYBACK_WAIT_MS = intEnv('CHAT_AUDIO_PLAYBACK_WAIT_MS', 5000);
 const AUDIO_SYNC_POLL_MS = intEnv('CHAT_AUDIO_SYNC_POLL_MS', 500);
+const AUDIO_ENERGY_WAIT_MS = intEnv('CHAT_AUDIO_ENERGY_WAIT_MS', AUDIO_PLAYBACK_WAIT_MS);
+const AUDIO_ENERGY_POLL_MS = intEnv('CHAT_AUDIO_ENERGY_POLL_MS', 250);
+const AUDIO_LEVEL_THRESHOLD = floatEnv('CHAT_AUDIO_LEVEL_THRESHOLD', 0.02);
+const AUDIO_ENERGY_DELTA = floatEnv('CHAT_AUDIO_ENERGY_DELTA', 0.001);
 
 type AudioStats = {
   frameCount: number;
@@ -42,6 +53,30 @@ type AudioGrowth = {
   firstGrowth: AudioSample;
   deltaBytes: number;
   deltaPackets: number;
+};
+
+type AudioEnergyStats = {
+  frameCount: number;
+  evaluatedFrames: number;
+  frameOrigins: string[];
+  reportCount: number;
+  maxAudioLevel: number;
+  totalAudioEnergy: number;
+  totalSamples: number;
+};
+
+type AudioEnergySample = {
+  ts: number;
+  stats: AudioEnergyStats;
+};
+
+type AudioEnergyResult = {
+  baseline: AudioEnergySample;
+  hit: AudioEnergySample | null;
+  lastSample: AudioEnergySample;
+  reason: 'audioLevel' | 'energyDelta' | 'timeout';
+  deltaEnergy: number;
+  deltaSamples: number;
 };
 
 type PlaybackEvent = {
@@ -179,6 +214,86 @@ const sampleAudioStats = async (page: Page): Promise<AudioSample> => {
   return { ts, stats };
 };
 
+const collectAudioEnergyStats = async (page: Page): Promise<AudioEnergyStats> => {
+  const frames = page.frames();
+  const aggregate: AudioEnergyStats = {
+    frameCount: frames.length,
+    evaluatedFrames: 0,
+    frameOrigins: [],
+    reportCount: 0,
+    maxAudioLevel: 0,
+    totalAudioEnergy: 0,
+    totalSamples: 0,
+  };
+
+  for (const frame of frames) {
+    const frameUrl = frame.url();
+    try {
+      aggregate.frameOrigins.push(new URL(frameUrl).origin);
+    } catch {
+      aggregate.frameOrigins.push(frameUrl);
+    }
+
+    try {
+      const stats = await frame.evaluate(async () => {
+        const pcs = (window as any).__peerConnections || [];
+        let maxAudioLevel = 0;
+        let totalAudioEnergy = 0;
+        let totalSamples = 0;
+        let reportCount = 0;
+        for (const pc of pcs) {
+          if (!pc) continue;
+          let reportSet: any;
+          try {
+            reportSet = await pc.getStats();
+          } catch {
+            continue;
+          }
+          reportSet.forEach((report: any) => {
+            if (
+              report.type === 'inbound-rtp' &&
+              (report.kind === 'audio' || report.mediaType === 'audio')
+            ) {
+              if (typeof report.audioLevel === 'number') {
+                maxAudioLevel = Math.max(maxAudioLevel, report.audioLevel);
+              }
+              if (typeof report.totalAudioEnergy === 'number') {
+                totalAudioEnergy += report.totalAudioEnergy;
+              }
+              if (typeof report.totalSamplesReceived === 'number') {
+                totalSamples += report.totalSamplesReceived;
+              }
+              reportCount += 1;
+            }
+          });
+        }
+        return {
+          reportCount,
+          maxAudioLevel,
+          totalAudioEnergy,
+          totalSamples,
+        };
+      });
+
+      aggregate.evaluatedFrames += 1;
+      aggregate.reportCount += stats.reportCount || 0;
+      aggregate.maxAudioLevel = Math.max(aggregate.maxAudioLevel, stats.maxAudioLevel || 0);
+      aggregate.totalAudioEnergy += stats.totalAudioEnergy || 0;
+      aggregate.totalSamples += stats.totalSamples || 0;
+    } catch {
+      // ignore frames that cannot be evaluated
+    }
+  }
+
+  return aggregate;
+};
+
+const sampleAudioEnergy = async (page: Page): Promise<AudioEnergySample> => {
+  const ts = await page.evaluate(() => Date.now());
+  const stats = await collectAudioEnergyStats(page);
+  return { ts, stats };
+};
+
 const waitForAudioGrowth = async (
   page: Page,
   baseline: AudioSample,
@@ -209,6 +324,68 @@ const waitForAudioGrowth = async (
   throw new Error(
     `No audio growth in ${timeoutMs}ms (baselineBytes=${baselineBytes}, baselinePackets=${baselinePackets}, lastBytes=${lastSample.stats.totalBytes}, lastPackets=${lastSample.stats.totalPackets})`,
   );
+};
+
+const waitForAudioEnergy = async (
+  page: Page,
+  baseline: AudioEnergySample,
+  timeoutMs: number,
+  pollMs: number,
+  levelThreshold: number,
+  energyDeltaThreshold: number,
+): Promise<AudioEnergyResult> => {
+  const baselineEnergy = baseline.stats.totalAudioEnergy;
+  const baselineSamples = baseline.stats.totalSamples;
+  if (baseline.stats.maxAudioLevel >= levelThreshold) {
+    return {
+      baseline,
+      hit: baseline,
+      lastSample: baseline,
+      reason: 'audioLevel',
+      deltaEnergy: 0,
+      deltaSamples: 0,
+    };
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  let lastSample = baseline;
+
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(pollMs);
+    const sample = await sampleAudioEnergy(page);
+    lastSample = sample;
+    if (sample.stats.maxAudioLevel >= levelThreshold) {
+      return {
+        baseline,
+        hit: sample,
+        lastSample: sample,
+        reason: 'audioLevel',
+        deltaEnergy: sample.stats.totalAudioEnergy - baselineEnergy,
+        deltaSamples: sample.stats.totalSamples - baselineSamples,
+      };
+    }
+    const deltaEnergy = sample.stats.totalAudioEnergy - baselineEnergy;
+    const deltaSamples = sample.stats.totalSamples - baselineSamples;
+    if (deltaEnergy >= energyDeltaThreshold && deltaSamples > 0) {
+      return {
+        baseline,
+        hit: sample,
+        lastSample: sample,
+        reason: 'energyDelta',
+        deltaEnergy,
+        deltaSamples,
+      };
+    }
+  }
+
+  return {
+    baseline,
+    hit: null,
+    lastSample,
+    reason: 'timeout',
+    deltaEnergy: lastSample.stats.totalAudioEnergy - baselineEnergy,
+    deltaSamples: lastSample.stats.totalSamples - baselineSamples,
+  };
 };
 
 const collectPlaybackInfo = async (page: Page): Promise<PlaybackInfo> => {
@@ -522,18 +699,35 @@ async function runScenario(page: Page, userId: number) {
   }, assistantText.visibleAt);
 
   const baseline = await sampleAudioStats(page);
-  const [audioGrowth, playbackInfo] = await Promise.all([
+  const energyBaseline = await sampleAudioEnergy(page);
+  const [audioGrowth, playbackInfo, audioEnergy] = await Promise.all([
     waitForAudioGrowth(page, baseline, AUDIO_TIMEOUT_MS, AUDIO_SYNC_POLL_MS),
     waitForPlaybackStart(page, AUDIO_PLAYBACK_WAIT_MS),
+    waitForAudioEnergy(
+      page,
+      energyBaseline,
+      AUDIO_ENERGY_WAIT_MS,
+      AUDIO_ENERGY_POLL_MS,
+      AUDIO_LEVEL_THRESHOLD,
+      AUDIO_ENERGY_DELTA,
+    ),
   ]);
 
   const textToAudioStartMs = audioGrowth.firstGrowth.ts - assistantText.visibleAt;
+  const textToAudioEnergyMs = audioEnergy.hit
+    ? audioEnergy.hit.ts - assistantText.visibleAt
+    : null;
   const textToPlaybackMs = playbackInfo.playbackStart
     ? playbackInfo.playbackStart.ts - assistantText.visibleAt
-    : null;
+    : textToAudioEnergyMs ?? textToAudioStartMs;
+  const playbackSource = playbackInfo.playbackStart
+    ? playbackInfo.playbackStart.source
+    : textToAudioEnergyMs !== null
+      ? 'energy'
+      : 'bytes';
 
   console.log(
-    `[sync] text->audioBytes ${textToAudioStartMs} ms, text->playback ${textToPlaybackMs ?? 'n/a'} ms`,
+    `[sync] text->audioBytes ${textToAudioStartMs} ms, text->audioEnergy ${textToAudioEnergyMs ?? 'n/a'} ms, text->playback ${textToPlaybackMs ?? 'n/a'} ms`,
   );
 
   await test.info().attach('text-audio-sync', {
@@ -544,12 +738,19 @@ async function runScenario(page: Page, userId: number) {
           question,
           assistantText,
           audioGrowth,
+          audioEnergy,
           playbackInfo,
           textToAudioStartMs,
+          textToAudioEnergyMs,
           textToPlaybackMs,
+          playbackSource,
           audioTimeoutMs: AUDIO_TIMEOUT_MS,
           audioPlaybackWaitMs: AUDIO_PLAYBACK_WAIT_MS,
           audioSyncPollMs: AUDIO_SYNC_POLL_MS,
+          audioEnergyWaitMs: AUDIO_ENERGY_WAIT_MS,
+          audioEnergyPollMs: AUDIO_ENERGY_POLL_MS,
+          audioLevelThreshold: AUDIO_LEVEL_THRESHOLD,
+          audioEnergyDelta: AUDIO_ENERGY_DELTA,
         },
         null,
         2,
