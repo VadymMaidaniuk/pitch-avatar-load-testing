@@ -1,6 +1,6 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, Locator } from '@playwright/test';
 import { UI_ASSIST_TIMEOUT_MS, UI_USERS } from './chatConfig';
-import { openChat, buildQuestion, userBubble } from './chatShared';
+import { openChat, buildQuestion, userBubble, assistantBubbles } from './chatShared';
 
 test.use({
   headless: false,
@@ -17,10 +17,8 @@ const intEnv = (name: string, fallback: number): number => {
 };
 
 const AUDIO_TIMEOUT_MS = intEnv('CHAT_AUDIO_TIMEOUT_MS', UI_ASSIST_TIMEOUT_MS);
-const AUDIO_MIN_BYTES = intEnv('CHAT_AUDIO_MIN_BYTES', 1);
-const AUDIO_MIN_PACKETS = intEnv('CHAT_AUDIO_MIN_PACKETS', 1);
-const AUDIO_GROWTH_WAIT_MS = intEnv('CHAT_AUDIO_GROWTH_WAIT_MS', 1500);
 const AUDIO_PLAYBACK_WAIT_MS = intEnv('CHAT_AUDIO_PLAYBACK_WAIT_MS', 5000);
+const AUDIO_SYNC_POLL_MS = intEnv('CHAT_AUDIO_SYNC_POLL_MS', 500);
 
 type AudioStats = {
   frameCount: number;
@@ -30,20 +28,20 @@ type AudioStats = {
   connectedPcs: number;
   iceConnectedPcs: number;
   audioReportCount: number;
-  videoReportCount: number;
   totalBytes: number;
   totalPackets: number;
-  videoBytes: number;
-  videoPackets: number;
-  audioReceivers: number;
-  videoReceivers: number;
 };
 
-type WsAssistantMessage = {
-  frame: any;
-  wsUrl?: string;
-  frameUrl?: string;
-  observedAt?: number;
+type AudioSample = {
+  ts: number;
+  stats: AudioStats;
+};
+
+type AudioGrowth = {
+  baseline: AudioSample;
+  firstGrowth: AudioSample;
+  deltaBytes: number;
+  deltaPackets: number;
 };
 
 type PlaybackEvent = {
@@ -90,6 +88,11 @@ type PlaybackInfo = {
   playbackStart?: PlaybackStartInfo;
 };
 
+type AssistantTextResult = {
+  text: string;
+  visibleAt: number;
+};
+
 const collectAudioStats = async (page: Page): Promise<AudioStats> => {
   const frames = page.frames();
   const aggregate: AudioStats = {
@@ -100,13 +103,8 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
     connectedPcs: 0,
     iceConnectedPcs: 0,
     audioReportCount: 0,
-    videoReportCount: 0,
     totalBytes: 0,
     totalPackets: 0,
-    videoBytes: 0,
-    videoPackets: 0,
-    audioReceivers: 0,
-    videoReceivers: 0,
   };
 
   for (const frame of frames) {
@@ -122,14 +120,9 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
         const pcs = (window as any).__peerConnections || [];
         let totalBytes = 0;
         let totalPackets = 0;
-        let videoBytes = 0;
-        let videoPackets = 0;
         let audioReportCount = 0;
-        let videoReportCount = 0;
         let connectedPcs = 0;
         let iceConnectedPcs = 0;
-        let audioReceivers = 0;
-        let videoReceivers = 0;
         for (const pc of pcs) {
           if (!pc) continue;
           if (pc.connectionState === 'connected') {
@@ -137,16 +130,6 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
           }
           if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
             iceConnectedPcs += 1;
-          }
-          try {
-            const receivers = pc.getReceivers ? pc.getReceivers() : [];
-            for (const receiver of receivers) {
-              const kind = receiver?.track?.kind;
-              if (kind === 'audio') audioReceivers += 1;
-              if (kind === 'video') videoReceivers += 1;
-            }
-          } catch {
-            // ignore
           }
           let reportSet: any;
           try {
@@ -162,15 +145,6 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
               totalBytes += report.bytesReceived || 0;
               totalPackets += report.packetsReceived || 0;
               audioReportCount += 1;
-              return;
-            }
-            if (
-              report.type === 'inbound-rtp' &&
-              (report.kind === 'video' || report.mediaType === 'video')
-            ) {
-              videoBytes += report.bytesReceived || 0;
-              videoPackets += report.packetsReceived || 0;
-              videoReportCount += 1;
             }
           });
         }
@@ -179,13 +153,8 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
           connectedPcs,
           iceConnectedPcs,
           audioReportCount,
-          videoReportCount,
           totalBytes,
           totalPackets,
-          videoBytes,
-          videoPackets,
-          audioReceivers,
-          videoReceivers,
         };
       });
 
@@ -194,13 +163,8 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
       aggregate.connectedPcs += stats.connectedPcs || 0;
       aggregate.iceConnectedPcs += stats.iceConnectedPcs || 0;
       aggregate.audioReportCount += stats.audioReportCount || 0;
-      aggregate.videoReportCount += stats.videoReportCount || 0;
       aggregate.totalBytes += stats.totalBytes || 0;
       aggregate.totalPackets += stats.totalPackets || 0;
-      aggregate.videoBytes += stats.videoBytes || 0;
-      aggregate.videoPackets += stats.videoPackets || 0;
-      aggregate.audioReceivers += stats.audioReceivers || 0;
-      aggregate.videoReceivers += stats.videoReceivers || 0;
     } catch {
       // ignore frames that cannot be evaluated
     }
@@ -209,40 +173,42 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
   return aggregate;
 };
 
-const waitForAssistantWsMessage = async (
+const sampleAudioStats = async (page: Page): Promise<AudioSample> => {
+  const ts = await page.evaluate(() => Date.now());
+  const stats = await collectAudioStats(page);
+  return { ts, stats };
+};
+
+const waitForAudioGrowth = async (
   page: Page,
+  baseline: AudioSample,
   timeoutMs: number,
-): Promise<WsAssistantMessage> => {
+  pollMs: number,
+): Promise<AudioGrowth> => {
+  const baselineBytes = baseline.stats.totalBytes;
+  const baselinePackets = baseline.stats.totalPackets;
   const deadline = Date.now() + timeoutMs;
+  let lastSample = baseline;
+
   while (Date.now() < deadline) {
-    for (const frame of page.frames()) {
-      try {
-        const result = await frame.evaluate(() => {
-          const frames: { url?: string; data?: string }[] = (window as any).__wsFrames || [];
-          for (const f of frames) {
-            if (!f?.data) continue;
-            try {
-              const parsed = JSON.parse(f.data);
-              if (parsed?.event_type === 'assistant_chat_message' || parsed?.message) {
-                return { frame: parsed, wsUrl: f.url, observedAt: Date.now() };
-              }
-            } catch {
-              // ignore non-json
-            }
-          }
-          return null;
-        });
-        if (result?.frame) {
-          return { ...result, frameUrl: frame.url() };
-        }
-      } catch {
-        // ignore frames that cannot be evaluated
-      }
+    await page.waitForTimeout(pollMs);
+    const sample = await sampleAudioStats(page);
+    const deltaBytes = sample.stats.totalBytes - baselineBytes;
+    const deltaPackets = sample.stats.totalPackets - baselinePackets;
+    if (deltaBytes > 0 || deltaPackets > 0) {
+      return {
+        baseline,
+        firstGrowth: sample,
+        deltaBytes,
+        deltaPackets,
+      };
     }
-    await page.waitForTimeout(500);
+    lastSample = sample;
   }
 
-  throw new Error(`No assistant WS message in ${timeoutMs}ms`);
+  throw new Error(
+    `No audio growth in ${timeoutMs}ms (baselineBytes=${baselineBytes}, baselinePackets=${baselinePackets}, lastBytes=${lastSample.stats.totalBytes}, lastPackets=${lastSample.stats.totalPackets})`,
+  );
 };
 
 const collectPlaybackInfo = async (page: Page): Promise<PlaybackInfo> => {
@@ -309,56 +275,71 @@ const waitForPlaybackStart = async (
   return info;
 };
 
-const waitForInboundAudio = async (
+const waitForAssistantText = async (
   page: Page,
-  timeoutMs: number,
-  minBytes: number,
-  minPackets: number,
-): Promise<AudioStats> => {
-  const deadline = Date.now() + timeoutMs;
-  let last: AudioStats = {
-    frameCount: 0,
-    evaluatedFrames: 0,
-    frameOrigins: [],
-    pcCount: 0,
-    connectedPcs: 0,
-    iceConnectedPcs: 0,
-    audioReportCount: 0,
-    videoReportCount: 0,
-    totalBytes: 0,
-    totalPackets: 0,
-    videoBytes: 0,
-    videoPackets: 0,
-    audioReceivers: 0,
-    videoReceivers: 0,
-  };
+  assistantBubbleLocator: Locator,
+  startIndex: number,
+  messageList: Locator,
+): Promise<AssistantTextResult> => {
+  const deadline = Date.now() + UI_ASSIST_TIMEOUT_MS;
+  let lastText = '';
+  const stripLabel = (text: string) =>
+    text.replace(/^chat avatar\s*(\[[^\]]*])?\s*/i, '').trim();
+  const stripTimestamp = (text: string) => text.replace(/\b\d{1,2}:\d{2}\b/g, '').trim();
+  const cleanText = (text: string) => stripTimestamp(stripLabel(text.replace(/\s+/g, ' ').trim()));
+  const hasContent = (text: string) => text && /[A-Za-z]/.test(text) && text.length >= 4;
+  const isLabelOnly = (text: string) => /^chat avatar\b/i.test(text) || /^\d{1,2}:\d{2}$/.test(text);
 
   while (Date.now() < deadline) {
-    last = await collectAudioStats(page);
-    if (last.totalBytes >= minBytes || last.totalPackets >= minPackets) {
-      return last;
+    const currentCount = await assistantBubbleLocator.count();
+    await messageList
+      .evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+      })
+      .catch(() => {});
+
+    for (let idx = startIndex; idx < currentCount; idx += 1) {
+      const candidate = assistantBubbleLocator.nth(idx);
+      const parts = (await candidate.locator('p, span, div').allInnerTexts().catch(() => [])) ?? [];
+      for (const part of parts) {
+        const cleaned = cleanText(part);
+        if (cleaned) lastText = cleaned;
+        if (hasContent(cleaned) && !isLabelOnly(cleaned)) {
+          const visibleAt = await page.evaluate(() => Date.now());
+          return { text: cleaned, visibleAt };
+        }
+      }
+      const fallback = cleanText(await candidate.innerText({ timeout: 2_000 }).catch(() => ''));
+      if (fallback) lastText = fallback;
+      if (hasContent(fallback) && !isLabelOnly(fallback)) {
+        const visibleAt = await page.evaluate(() => Date.now());
+        return { text: fallback, visibleAt };
+      }
     }
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(500);
   }
 
   throw new Error(
-    `No inbound audio in ${timeoutMs}ms (frames=${last.frameCount}, evalFrames=${last.evaluatedFrames}, pcs=${last.pcCount}, connected=${last.connectedPcs}, iceConnected=${last.iceConnectedPcs}, audioReceivers=${last.audioReceivers}, videoReceivers=${last.videoReceivers}, audioReports=${last.audioReportCount}, videoReports=${last.videoReportCount}, audioBytes=${last.totalBytes}, audioPackets=${last.totalPackets}, videoBytes=${last.videoBytes}, videoPackets=${last.videoPackets})`,
+    `Assistant reply text not received in ${UI_ASSIST_TIMEOUT_MS}ms (last text: "${lastText}")`,
   );
 };
 
 async function runScenario(page: Page, userId: number) {
-  const timeout = Math.max(UI_ASSIST_TIMEOUT_MS + AUDIO_TIMEOUT_MS + 60_000, 150_000);
+  const timeout = Math.max(
+    UI_ASSIST_TIMEOUT_MS + AUDIO_TIMEOUT_MS + AUDIO_PLAYBACK_WAIT_MS + 60_000,
+    180_000,
+  );
   test.setTimeout(timeout);
 
   await page.addInitScript(() => {
     const w = window as any;
     if (!w.__peerConnections) w.__peerConnections = [];
-    if (!w.__wsFrames) w.__wsFrames = [];
-    if (!w.__wsUrls) w.__wsUrls = [];
     if (!w.__mediaPlaybackEvents) w.__mediaPlaybackEvents = [];
     if (!w.__mediaPlaybackStart) w.__mediaPlaybackStart = null;
     if (!w.__rtcTrackEvents) w.__rtcTrackEvents = [];
     if (!w.__rtcPlaybackStart) w.__rtcPlaybackStart = null;
+    if (typeof w.__syncGateTs !== 'number') w.__syncGateTs = 0;
+
     if (!w.__mediaPlaybackInstrumented) {
       w.__mediaPlaybackInstrumented = true;
       const trackCounts = (el: HTMLMediaElement) => {
@@ -376,9 +357,11 @@ async function runScenario(page: Page, userId: number) {
         return { audioTracks, videoTracks };
       };
       const record = (el: HTMLMediaElement, eventType: string) => {
+        const ts = Date.now();
+        if (ts < (w.__syncGateTs || 0)) return;
         const counts = trackCounts(el);
         const entry = {
-          ts: Date.now(),
+          ts,
           eventType,
           tagName: el.tagName,
           currentTime: el.currentTime || 0,
@@ -431,40 +414,7 @@ async function runScenario(page: Page, userId: number) {
       }
       scan();
     }
-    const OriginalWs = w.WebSocket;
-    if (OriginalWs && !w.__wsInstrumented) {
-      w.__wsInstrumented = true;
-      const decoder = new TextDecoder();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      class InstrumentedWS extends OriginalWs {
-        constructor(url: string, protocols?: string | string[]) {
-          super(url, protocols as any);
-          try {
-            w.__wsUrls.push(url);
-          } catch {
-            // ignore
-          }
-          this.addEventListener('message', async (event: MessageEvent) => {
-            try {
-              const data = (event as any).data;
-              let text = '';
-              if (typeof data === 'string') {
-                text = data;
-              } else if (data instanceof ArrayBuffer) {
-                text = decoder.decode(data);
-              } else if (data && typeof (data as any).text === 'function') {
-                text = await (data as any).text();
-              }
-              w.__wsFrames.push({ url, data: text });
-            } catch {
-              // ignore
-            }
-          });
-        }
-      }
-      // @ts-ignore
-      w.WebSocket = InstrumentedWS;
-    }
+
     const Original = w.RTCPeerConnection || w.webkitRTCPeerConnection;
     if (!Original || w.__pcInstrumented) return;
     w.__pcInstrumented = true;
@@ -473,22 +423,26 @@ async function runScenario(page: Page, userId: number) {
       try {
         pc.addEventListener('track', (event: RTCTrackEvent) => {
           const track = event.track;
-          const entry = {
-            ts: Date.now(),
-            eventType: 'track',
-            kind: track?.kind || null,
-            muted: !!track?.muted,
-            readyState: track?.readyState || null,
-            trackId: track?.id || null,
-            trackLabel: track?.label || null,
-            streams: event.streams ? event.streams.length : 0,
-          };
-          w.__rtcTrackEvents.push(entry);
+          const ts = Date.now();
+          if (ts >= (w.__syncGateTs || 0)) {
+            w.__rtcTrackEvents.push({
+              ts,
+              eventType: 'track',
+              kind: track?.kind || null,
+              muted: !!track?.muted,
+              readyState: track?.readyState || null,
+              trackId: track?.id || null,
+              trackLabel: track?.label || null,
+              streams: event.streams ? event.streams.length : 0,
+            });
+          }
           if (track && !(track as any).__pbAttached) {
             (track as any).__pbAttached = true;
             track.addEventListener('unmute', () => {
+              const unmuteTs = Date.now();
+              if (unmuteTs < (w.__syncGateTs || 0)) return;
               const unmuteEntry = {
-                ts: Date.now(),
+                ts: unmuteTs,
                 eventType: 'unmute',
                 kind: track.kind || null,
                 muted: !!track.muted,
@@ -503,8 +457,10 @@ async function runScenario(page: Page, userId: number) {
               }
             });
             track.addEventListener('mute', () => {
+              const muteTs = Date.now();
+              if (muteTs < (w.__syncGateTs || 0)) return;
               w.__rtcTrackEvents.push({
-                ts: Date.now(),
+                ts: muteTs,
                 eventType: 'mute',
                 kind: track.kind || null,
                 muted: !!track.muted,
@@ -538,57 +494,62 @@ async function runScenario(page: Page, userId: number) {
     }
   });
 
-  const { input, sendButton } = await openChat(page);
+  const { input, sendButton, messageList } = await openChat(page);
+  const assistantBubbleLocator = assistantBubbles(page);
 
   const question = buildQuestion(userId);
   await input.fill(question);
   await expect(sendButton).toBeEnabled({ timeout: 10_000 });
+
+  const botCountBefore = await assistantBubbleLocator.count();
   await sendButton.click();
   await expect(userBubble(page, question)).toBeVisible({ timeout: 20_000 });
 
-  const assistantWs = await waitForAssistantWsMessage(page, UI_ASSIST_TIMEOUT_MS);
-  if (assistantWs.frame?.message) {
-    expect(String(assistantWs.frame.message).length).toBeGreaterThan(0);
-  }
-
-  const audioStats = await waitForInboundAudio(
+  const assistantText = await waitForAssistantText(
     page,
-    AUDIO_TIMEOUT_MS,
-    AUDIO_MIN_BYTES,
-    AUDIO_MIN_PACKETS,
+    assistantBubbleLocator,
+    botCountBefore,
+    messageList,
   );
-  expect(audioStats.totalBytes + audioStats.totalPackets).toBeGreaterThan(0);
-  const audioDetectedAt = await page.evaluate(() => Date.now());
 
-  await page.waitForTimeout(AUDIO_GROWTH_WAIT_MS);
-  const audioStatsAfter = await collectAudioStats(page);
-  const deltaBytes = audioStatsAfter.totalBytes - audioStats.totalBytes;
-  const deltaPackets = audioStatsAfter.totalPackets - audioStats.totalPackets;
-  expect(deltaBytes + deltaPackets).toBeGreaterThan(0);
+  await page.evaluate((gateTs) => {
+    const w = window as any;
+    w.__syncGateTs = gateTs;
+    w.__mediaPlaybackStart = null;
+    w.__rtcPlaybackStart = null;
+    w.__mediaPlaybackEvents = [];
+    w.__rtcTrackEvents = [];
+  }, assistantText.visibleAt);
 
-  const playbackInfo = await waitForPlaybackStart(page, AUDIO_PLAYBACK_WAIT_MS);
-  const playbackStartDelayMs =
-    playbackInfo.playbackStart && assistantWs.observedAt
-      ? playbackInfo.playbackStart.ts - assistantWs.observedAt
-      : null;
-  const playbackStartAfterAudioMs =
-    playbackInfo.playbackStart ? playbackInfo.playbackStart.ts - audioDetectedAt : null;
+  const baseline = await sampleAudioStats(page);
+  const [audioGrowth, playbackInfo] = await Promise.all([
+    waitForAudioGrowth(page, baseline, AUDIO_TIMEOUT_MS, AUDIO_SYNC_POLL_MS),
+    waitForPlaybackStart(page, AUDIO_PLAYBACK_WAIT_MS),
+  ]);
 
-  await test.info().attach('webrtc-audio-stats', {
+  const textToAudioStartMs = audioGrowth.firstGrowth.ts - assistantText.visibleAt;
+  const textToPlaybackMs = playbackInfo.playbackStart
+    ? playbackInfo.playbackStart.ts - assistantText.visibleAt
+    : null;
+
+  console.log(
+    `[sync] text->audioBytes ${textToAudioStartMs} ms, text->playback ${textToPlaybackMs ?? 'n/a'} ms`,
+  );
+
+  await test.info().attach('text-audio-sync', {
     contentType: 'application/json',
     body: Buffer.from(
       JSON.stringify(
         {
           question,
-          assistantWs,
-          audioStats,
-          audioStatsAfter,
-          audioGrowthWaitMs: AUDIO_GROWTH_WAIT_MS,
-          audioDetectedAt,
+          assistantText,
+          audioGrowth,
           playbackInfo,
-          playbackStartDelayMs,
-          playbackStartAfterAudioMs,
+          textToAudioStartMs,
+          textToPlaybackMs,
+          audioTimeoutMs: AUDIO_TIMEOUT_MS,
           audioPlaybackWaitMs: AUDIO_PLAYBACK_WAIT_MS,
+          audioSyncPollMs: AUDIO_SYNC_POLL_MS,
         },
         null,
         2,
@@ -598,7 +559,7 @@ async function runScenario(page: Page, userId: number) {
 }
 
 for (let userId = 1; userId <= UI_USERS; userId += 1) {
-  test(`UI WebRTC audio for user #${userId}`, async ({ page }) => {
+  test(`UI text to audio delay for user #${userId}`, async ({ page }) => {
     await runScenario(page, userId);
   });
 }
