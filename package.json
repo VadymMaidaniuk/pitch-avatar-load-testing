@@ -5,8 +5,12 @@
   "main": "index.js",
   "scripts": {
     "test": "playwright test",
-    "test:ui": "playwright test tests/chat-avatar-load.spec.ts",
-    "test:ui-ws": "playwright test tests/chat-avatar-ws-ui.spec.ts",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:regression": "playwright test --grep @regression",
+    "test:api": "playwright test --grep @api",
+    "test:e2e": "playwright test --grep @e2e",
+    "test:ui": "playwright test tests/e2e/chat-avatar-load.spec.ts",
+    "test:ui-ws": "playwright test tests/e2e/chat-avatar-ws-ui.spec.ts",
     "test:dev": "cross-env DOTENV_CONFIG_PATH=.env.dev CHAT_ENV=dev playwright test",
     "test:stage": "cross-env DOTENV_CONFIG_PATH=.env.stage CHAT_ENV=stage playwright test",
     "test:prod": "cross-env DOTENV_CONFIG_PATH=.env.prod CHAT_ENV=prod playwright test"

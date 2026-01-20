@@ -27,18 +27,22 @@ Examples:
 
 ## Running Tests
 - All tests: `npm test`
+- Smoke suite: `npm run test:smoke`
+- Regression suite: `npm run test:regression`
+- API-only tests: `npm run test:api`
+- E2E tests: `npm run test:e2e`
 - UI reply-time load test: `npm run test:ui`
 - UI + WS validation: `npm run test:ui-ws`
 - Environment presets: `npm run test:dev`, `npm run test:stage`, `npm run test:prod`
 
 ## Test Coverage (High Level)
-- UI chat reply timing: `tests/chat-avatar-load.spec.ts`
-- UI message chains: `tests/chat-avatar-chain.spec.ts`
-- UI WebSocket capture: `tests/chat-avatar-ws-ui.spec.ts`
-- API + WS flow: `tests/chat-avatar-api-ws.spec.ts`
-- WebRTC audio presence and playback timing: `tests/chat-avatar-audio-webrtc.spec.ts`
-- Audio recording of assistant replies: `tests/chat-avatar-audio-record.spec.ts`
-- Text-to-audio sync metrics: `tests/chat-avatar-text-audio-sync.spec.ts`
+- UI chat reply timing: `tests/e2e/chat-avatar-load.spec.ts`
+- UI message chains: `tests/e2e/chat-avatar-chain.spec.ts`
+- UI WebSocket capture: `tests/e2e/chat-avatar-ws-ui.spec.ts`
+- API + WS flow: `tests/api/chat-avatar-api-ws.spec.ts`
+- WebRTC audio presence and playback timing: `tests/e2e/chat-avatar-audio-webrtc.spec.ts`
+- Audio recording of assistant replies: `tests/e2e/chat-avatar-audio-record.spec.ts`
+- Text-to-audio sync metrics: `tests/e2e/chat-avatar-text-audio-sync.spec.ts`
 
 ## Output
 - HTML report: `playwright-report/`
