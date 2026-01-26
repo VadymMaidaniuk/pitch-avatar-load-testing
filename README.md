@@ -50,5 +50,5 @@ Examples:
 - Reply timing log: `test-results/chat-reply-times-<runId>.log` (UI load test)
 
 ## Notes
-- Several UI/audio specs force `headless: false`, so a browser window will open.
+- Several UI/audio specs force `headless: false`, so a browser window will open i hope.
 - WebRTC/audio specs use `--use-fake-ui-for-media-stream` to avoid permission prompts.
