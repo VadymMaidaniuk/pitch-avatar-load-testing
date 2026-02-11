@@ -87,18 +87,24 @@ for (let userId = 1; userId <= UI_USERS; userId += 1) {
   test(`[@smoke][@api] API+WS user #${userId} assistant reply on WS`, async ({ request }) => {
     test.setTimeout(Math.max(WS_ASSIST_TIMEOUT_MS + 60_000, 120_000));
     const client = new ScrApiClient(request);
-    const { token, scrUserID } = await client.login();
-
-    const wsUrl = `${WS_BASE_URL}/ws?scrUserID=${encodeURIComponent(scrUserID)}`;
     const frames: string[] = [];
-    const socket = await connectWs(wsUrl);
+    let socket: WebSocket | undefined;
+    let wsUrl = '';
+    let question = '';
+    let scrUserID = '';
+    const { token, scrUserID: currentScrUserID } = await client.login();
+    scrUserID = currentScrUserID;
+    test.info().annotations.push({ type: 'scrUserID', description: scrUserID });
+
+    wsUrl = `${WS_BASE_URL}/ws?scrUserID=${encodeURIComponent(scrUserID)}`;
+    socket = await connectWs(wsUrl);
 
     try {
       const waitForReply = waitForAssistantMessage(socket, WS_ASSIST_TIMEOUT_MS, frames);
       await client.reportAction(token, 'screen_user_started_screening');
       sendWsReportAction(socket, 'screen_user_started_screening');
 
-      const question = buildQuestion(userId);
+      question = buildQuestion(userId);
       const reportResponse = await client.reportAction(token, 'screen_user_made_chat_message', {
         message: question,
       });
@@ -124,7 +130,22 @@ for (let userId = 1; userId <= UI_USERS; userId += 1) {
         ),
       });
     } finally {
-      socket.close();
+      if (scrUserID) {
+        await test.info().attach('scr-user-context', {
+          contentType: 'application/json',
+          body: Buffer.from(
+            JSON.stringify({
+              userId,
+              scrUserID,
+              wsUrl,
+              question,
+              frameCount: frames.length,
+              framesSample: frames.slice(0, 5),
+            }),
+          ),
+        });
+      }
+      socket?.close();
     }
   });
 }

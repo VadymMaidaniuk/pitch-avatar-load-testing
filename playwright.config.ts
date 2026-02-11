@@ -3,25 +3,32 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { defineConfig, devices } from '@playwright/test';
 
-const loadEnvFile = () => {
-  const envName = process.env.CHAT_ENV || process.env.NODE_ENV;
-  const candidates = [
-    process.env.DOTENV_CONFIG_PATH,
-    envName ? `.env.${envName}` : undefined,
-    '.env',
-  ].filter(Boolean) as string[];
-
-  for (const rel of candidates) {
-    const full = path.resolve(__dirname, rel);
+const loadEnvFiles = () => {
+  // Explicit path has the highest priority and preserves current scripts behavior.
+  const explicitPath = process.env.DOTENV_CONFIG_PATH;
+  if (explicitPath) {
+    const full = path.resolve(__dirname, explicitPath);
     if (fs.existsSync(full)) {
       dotenv.config({ path: full });
-      return full;
+      return;
     }
   }
-  return undefined;
+
+  const baseEnvPath = path.resolve(__dirname, '.env');
+  if (fs.existsSync(baseEnvPath)) {
+    dotenv.config({ path: baseEnvPath });
+  }
+
+  const envName = (process.env.CHAT_ENV || process.env.NODE_ENV || '').trim();
+  if (!envName) return;
+
+  const scopedEnvPath = path.resolve(__dirname, `.env.${envName}`);
+  if (fs.existsSync(scopedEnvPath)) {
+    dotenv.config({ path: scopedEnvPath, override: true });
+  }
 };
 
-loadEnvFile();
+loadEnvFiles();
 
 const envWorkers = (() => {
   const parsed = Number(process.env.CHAT_WORKERS);
