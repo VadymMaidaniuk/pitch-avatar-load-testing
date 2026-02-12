@@ -23,6 +23,12 @@ type WsAssistantEvent = {
   observedAt?: number;
 };
 
+type LatencyMetrics = {
+  avatarUiLatencyMs: number | null;
+  wsLatencyMs: number | null;
+  uiMinusWsMs: number | null;
+};
+
 async function installWsInstrumentation(page: Page) {
   await page.addInitScript(() => {
     const w = window as any;
@@ -175,6 +181,20 @@ async function sendAndMeasure(page: Page, userId: number) {
     .then((value) => ({ ok: true as const, value }))
     .catch((error) => ({ ok: false as const, error }));
 
+  const calcMetrics = (
+    avatarUiLatencyMs: number | null,
+    wsEvent?: WsAssistantEvent | null,
+  ): LatencyMetrics => {
+    const wsLatencyMs =
+      typeof wsEvent?.observedAt === 'number' ? Math.max(0, wsEvent.observedAt - start) : null;
+    const uiMinusWsMs =
+      avatarUiLatencyMs !== null && wsLatencyMs !== null ? avatarUiLatencyMs - wsLatencyMs : null;
+    return { avatarUiLatencyMs, wsLatencyMs, uiMinusWsMs };
+  };
+
+  const metricsToDetail = (metrics: LatencyMetrics): string =>
+    `avatar_ui_latency_ms=${metrics.avatarUiLatencyMs ?? 'n/a'}; ws_latency_ms=${metrics.wsLatencyMs ?? 'n/a'}; ui_minus_ws_ms=${metrics.uiMinusWsMs ?? 'n/a'}`;
+
   try {
     await expect(newBotBubble).toBeVisible({ timeout: UI_ASSIST_TIMEOUT_MS });
     const replyText = await waitForAssistantText();
@@ -182,10 +202,15 @@ async function sendAndMeasure(page: Page, userId: number) {
     status = 'ok';
     const wsSignal = await Promise.race([
       wsPromise,
-      page.waitForTimeout(2_000).then(() => null),
+      page.waitForTimeout(5_000).then(() => null),
     ]);
-    const wsState = wsSignal && wsSignal.ok ? 'ws+ui' : 'ui-only';
-    console.log(`[VU ${userId}] reply in ${duration} ms (${wsState}): ${replyText.slice(0, 120)}`);
+    const wsEvent = wsSignal && wsSignal.ok ? wsSignal.value : null;
+    const metrics = calcMetrics(duration, wsEvent);
+    detail = metricsToDetail(metrics);
+    const wsState = metrics.wsLatencyMs !== null ? 'ws+ui' : 'ui-only';
+    console.log(
+      `[VU ${userId}] reply in ${duration} ms (${wsState}, ws=${metrics.wsLatencyMs ?? 'n/a'} ms, ui-ws=${metrics.uiMinusWsMs ?? 'n/a'} ms): ${replyText.slice(0, 120)}`,
+    );
   } catch (err: any) {
     duration = Date.now() - start;
     const wsResult = await wsPromise;
@@ -193,7 +218,8 @@ async function sendAndMeasure(page: Page, userId: number) {
       status = 'ui_not_rendered_ws_received';
       const wsMessage = String(wsResult.value.frame?.message ?? '').replace(/\s+/g, ' ').trim();
       const wsPreview = wsMessage.slice(0, 160);
-      detail = `ws=true; message="${wsPreview}"`;
+      const metrics = calcMetrics(null, wsResult.value);
+      detail = `${metricsToDetail(metrics)}; ws=true; message="${wsPreview}"`;
 
       await test.info().attach('ws-ui-mismatch', {
         contentType: 'application/json',
@@ -202,6 +228,7 @@ async function sendAndMeasure(page: Page, userId: number) {
             {
               userId,
               durationMs: duration,
+              metrics,
               question,
               wsUrl: wsResult.value.url,
               wsObservedAt: wsResult.value.observedAt,
@@ -227,8 +254,9 @@ async function sendAndMeasure(page: Page, userId: number) {
 
     const errText = err?.message?.toString?.() ?? String(err);
     status = /timeout/i.test(errText) ? 'timeout' : 'error';
+    detail = `avatar_ui_latency_ms=n/a; ws_latency_ms=n/a; ui_minus_ws_ms=n/a; error="${errText.slice(0, 160)}"`;
     console.warn(`[VU ${userId}] reply failed (${status}) after ${duration} ms`);
-    logResult(userId, duration, status, `error="${errText.slice(0, 160)}"`);
+    logResult(userId, duration, status, detail);
     throw err;
   }
 
