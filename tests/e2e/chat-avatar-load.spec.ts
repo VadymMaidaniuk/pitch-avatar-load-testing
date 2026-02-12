@@ -15,10 +15,69 @@ const LOG_RUN_ID = process.env.CHAT_LOG_RUN_ID ?? RUN_ID;
 const LOG_FILE = path.join(LOG_DIR, `chat-reply-times-${LOG_RUN_ID}.log`);
 const TEST_TIMEOUT_MS = Math.max(UI_ASSIST_TIMEOUT_MS + 120_000, 180_000);
 
-async function sendAndMeasure(page: Page, userId: number) {
-  let status: 'ok' | 'timeout' | 'error' = 'error';
-  let duration = 0;
+type ResultStatus = 'ok' | 'timeout' | 'error' | 'ui_not_rendered_ws_received';
 
+type WsAssistantEvent = {
+  frame: any;
+  url?: string;
+  observedAt?: number;
+};
+
+async function installWsInstrumentation(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as any;
+    if (w.__wsInstrumentedLoad) return;
+    w.__wsInstrumentedLoad = true;
+
+    if (!w.__wsFrames) w.__wsFrames = [];
+    if (!w.__wsUrls) w.__wsUrls = [];
+
+    const Original = w.WebSocket;
+    if (!Original) return;
+
+    const decoder = new TextDecoder();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    class InstrumentedWS extends Original {
+      constructor(url: string, protocols?: string | string[]) {
+        super(url, protocols as any);
+
+        try {
+          w.__wsUrls.push(url);
+        } catch {
+          // ignore
+        }
+
+        this.addEventListener('message', async (event: MessageEvent) => {
+          try {
+            const data = (event as any).data;
+            let text = '';
+            if (typeof data === 'string') {
+              text = data;
+            } else if (data instanceof ArrayBuffer) {
+              text = decoder.decode(data);
+            } else if (data && typeof (data as any).text === 'function') {
+              text = await (data as any).text();
+            }
+            w.__wsFrames.push({ url, data: text, ts: Date.now() });
+          } catch {
+            // ignore
+          }
+        });
+      }
+    }
+
+    // @ts-ignore
+    w.WebSocket = InstrumentedWS;
+  });
+}
+
+async function sendAndMeasure(page: Page, userId: number) {
+  let status: ResultStatus = 'error';
+  let duration = 0;
+  let detail = '';
+
+  await installWsInstrumentation(page);
   const chat = new ChatPage(page);
   await chat.open();
   const input = chat.input;
@@ -86,14 +145,19 @@ async function sendAndMeasure(page: Page, userId: number) {
 
   const waitForWsAssistant = async () => {
     const handle = await page.waitForFunction(
-      () => {
+      (sentAt: number) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const frames: { url: string; data: string }[] = (window as any).__wsFrames || [];
+        const frames: { url?: string; data?: string; ts?: number }[] = (window as any).__wsFrames || [];
         for (const f of frames) {
+          if (!f?.data || !f.ts || f.ts < sentAt) continue;
           try {
             const parsed = JSON.parse(f.data);
             if (parsed?.event_type === 'assistant_chat_message' || parsed?.message) {
-              return parsed;
+              return {
+                frame: parsed,
+                url: f.url,
+                observedAt: f.ts,
+              };
             }
           } catch {
             continue;
@@ -101,38 +165,87 @@ async function sendAndMeasure(page: Page, userId: number) {
         }
         return null;
       },
+      start,
       { timeout: UI_ASSIST_TIMEOUT_MS },
     );
-    return (await handle.jsonValue()) as any;
+    return (await handle.jsonValue()) as WsAssistantEvent;
   };
+
+  const wsPromise = waitForWsAssistant()
+    .then((value) => ({ ok: true as const, value }))
+    .catch((error) => ({ ok: false as const, error }));
 
   try {
     await expect(newBotBubble).toBeVisible({ timeout: UI_ASSIST_TIMEOUT_MS });
     const replyText = await waitForAssistantText();
     duration = Date.now() - start;
     status = 'ok';
-    console.log(`[VU ${userId}] reply in ${duration} ms: ${replyText.slice(0, 120)}`);
+    const wsSignal = await Promise.race([
+      wsPromise,
+      page.waitForTimeout(2_000).then(() => null),
+    ]);
+    const wsState = wsSignal && wsSignal.ok ? 'ws+ui' : 'ui-only';
+    console.log(`[VU ${userId}] reply in ${duration} ms (${wsState}): ${replyText.slice(0, 120)}`);
   } catch (err: any) {
     duration = Date.now() - start;
-    status = err?.message?.toString().includes('Timeout') ? 'timeout' : 'error';
+    const wsResult = await wsPromise;
+    if (wsResult.ok && wsResult.value?.frame) {
+      status = 'ui_not_rendered_ws_received';
+      const wsMessage = String(wsResult.value.frame?.message ?? '').replace(/\s+/g, ' ').trim();
+      const wsPreview = wsMessage.slice(0, 160);
+      detail = `ws=true; message="${wsPreview}"`;
+
+      await test.info().attach('ws-ui-mismatch', {
+        contentType: 'application/json',
+        body: Buffer.from(
+          JSON.stringify(
+            {
+              userId,
+              durationMs: duration,
+              question,
+              wsUrl: wsResult.value.url,
+              wsObservedAt: wsResult.value.observedAt,
+              wsMessage: wsMessage || null,
+              uiError: err?.message || String(err),
+              wsUrls: await page.evaluate(() => (window as any).__wsUrls || []),
+            },
+            null,
+            2,
+          ),
+        ),
+      });
+
+      console.warn(
+        `[VU ${userId}] reply failed (${status}) after ${duration} ms; WS message received but UI bubble stayed empty`,
+      );
+
+      logResult(userId, duration, status, detail);
+      throw new Error(
+        `Assistant WS message received but UI text not rendered in ${UI_ASSIST_TIMEOUT_MS}ms`,
+      );
+    }
+
+    const errText = err?.message?.toString?.() ?? String(err);
+    status = /timeout/i.test(errText) ? 'timeout' : 'error';
     console.warn(`[VU ${userId}] reply failed (${status}) after ${duration} ms`);
-    logResult(userId, duration, status);
+    logResult(userId, duration, status, `error="${errText.slice(0, 160)}"`);
     throw err;
   }
 
-  logResult(userId, duration, status);
+  logResult(userId, duration, status, detail);
 }
 
 function lineBreak(): string {
   return process.platform === 'win32' ? '\r\n' : '\n';
 }
 
-function logResult(userId: number, durationMs: number, status: 'ok' | 'timeout' | 'error') {
+function logResult(userId: number, durationMs: number, status: ResultStatus, detail?: string) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
   const timestamp = new Date().toISOString();
+  const suffix = detail ? `\t${detail}` : '';
   fs.appendFileSync(
     LOG_FILE,
-    `${timestamp}\tVU ${userId}\t${status}\t${durationMs} ms${lineBreak()}`,
+    `${timestamp}\tVU ${userId}\t${status}\t${durationMs} ms${suffix}${lineBreak()}`,
   );
 }
 
