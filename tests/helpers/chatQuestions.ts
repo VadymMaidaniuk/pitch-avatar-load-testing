@@ -58,5 +58,5 @@ export function buildQuestion(userId: number): string {
   const idx = (userId - 1) % QUESTION_POOL.length;
   const base = QUESTION_POOL[idx];
   const salt = `${userId}-${Date.now()}`;
-  return `${base} [${salt}]`;
+  return `${base} (${salt})`;
 }
