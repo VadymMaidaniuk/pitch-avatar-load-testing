@@ -19,8 +19,29 @@ type ResultStatus = 'ok' | 'timeout' | 'error' | 'ui_not_rendered_ws_received';
 
 type WsAssistantEvent = {
   frame: any;
+  message?: string;
+  eventType?: string;
+  createdAt?: string | null;
   url?: string;
   observedAt?: number;
+};
+
+type StreamEvent = {
+  ts: number;
+  iso: string;
+  endpoint: 'connect' | 'sdp' | 'ice';
+  url: string;
+  status: number;
+  streamId: string | null;
+  sessionId: string | null;
+  requestId: string | null;
+};
+
+type StreamCapture = {
+  events: StreamEvent[];
+  streamIds: string[];
+  sessionIds: string[];
+  requestIds: string[];
 };
 
 type LatencyMetrics = {
@@ -78,11 +99,139 @@ async function installWsInstrumentation(page: Page) {
   });
 }
 
+function uniq(values: (string | null | undefined)[]): string[] {
+  return [...new Set(values.filter((value): value is string => typeof value === 'string' && value.length > 0))];
+}
+
+function pickString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function parseScrUserId(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.searchParams.get('scrUserID');
+  } catch {
+    return null;
+  }
+}
+
+function isoTs(ts: number | null | undefined): string {
+  if (typeof ts !== 'number' || !Number.isFinite(ts)) return 'n/a';
+  return new Date(ts).toISOString();
+}
+
+async function readWsUrls(page: Page): Promise<string[]> {
+  try {
+    const urls = await page.evaluate(() => (window as any).__wsUrls || []);
+    return Array.isArray(urls)
+      ? urls.filter((url: unknown): url is string => typeof url === 'string' && url.length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function installStreamInstrumentation(page: Page): StreamCapture {
+  const capture: StreamCapture = {
+    events: [],
+    streamIds: [],
+    sessionIds: [],
+    requestIds: [],
+  };
+
+  page.on('response', async (response) => {
+    const url = response.url();
+    const endpointMatch = url.match(/\/api\/wrapper\/v1\/streams\/(connect|sdp|ice)(?:\?|$)/i);
+    if (!endpointMatch) return;
+
+    const endpoint = endpointMatch[1].toLowerCase() as StreamEvent['endpoint'];
+    const headers = response.headers();
+    const ts = Date.now();
+    const request = response.request();
+    const requestPostData = request.postData();
+    let parsedResponse: any = null;
+    let parsedRequest: any = null;
+
+    try {
+      parsedResponse = await response.json();
+    } catch {
+      // ignore non-json response bodies
+    }
+
+    if (requestPostData) {
+      try {
+        parsedRequest = JSON.parse(requestPostData);
+      } catch {
+        // ignore non-json request bodies
+      }
+    }
+
+    const streamId = pickString(
+      parsedResponse?.id,
+      parsedResponse?.streamId,
+      parsedResponse?.stream_id,
+      parsedResponse?.data?.id,
+      parsedResponse?.data?.attributes?.id,
+      parsedResponse?.data?.attributes?.streamId,
+      parsedResponse?.data?.attributes?.stream_id,
+      parsedRequest?.streamId,
+      parsedRequest?.stream_id,
+      parsedRequest?.data?.streamId,
+      parsedRequest?.data?.stream_id,
+    );
+
+    const sessionId = pickString(
+      parsedResponse?.session_id,
+      parsedResponse?.sessionId,
+      parsedResponse?.data?.attributes?.session_id,
+      parsedResponse?.data?.attributes?.sessionId,
+      parsedRequest?.session_id,
+      parsedRequest?.sessionId,
+      parsedRequest?.settings?.session_id,
+      parsedRequest?.settings?.sessionId,
+    );
+
+    const requestId = pickString(
+      headers['x-request-id'],
+      headers['x-amzn-requestid'],
+      headers['x-amz-request-id'],
+      headers['x-correlation-id'],
+      headers['x-trace-id'],
+      headers['trace-id'],
+    );
+
+    capture.events.push({
+      ts,
+      iso: new Date(ts).toISOString(),
+      endpoint,
+      url,
+      status: response.status(),
+      streamId,
+      sessionId,
+      requestId,
+    });
+
+    capture.streamIds = uniq([...capture.streamIds, streamId]);
+    capture.sessionIds = uniq([...capture.sessionIds, sessionId]);
+    capture.requestIds = uniq([...capture.requestIds, requestId]);
+  });
+
+  return capture;
+}
+
 async function sendAndMeasure(page: Page, userId: number) {
   let status: ResultStatus = 'error';
   let duration = 0;
   let detail = '';
 
+  const streamCapture = installStreamInstrumentation(page);
   await installWsInstrumentation(page);
   const chat = new ChatPage(page);
   await chat.open();
@@ -158,11 +307,43 @@ async function sendAndMeasure(page: Page, userId: number) {
           if (!f?.data || !f.ts || f.ts < sentAt) continue;
           try {
             const parsed = JSON.parse(f.data);
-            if (parsed?.event_type === 'assistant_chat_message' || parsed?.message) {
+            const legacyType = typeof parsed?.event_type === 'string' ? parsed.event_type : '';
+            const legacyMessage = typeof parsed?.message === 'string' ? parsed.message.trim() : '';
+            if (
+              (legacyType === 'assistant_chat_message' || legacyType === 'chat_stream_chunk') &&
+              legacyMessage.length > 0
+            ) {
               return {
                 frame: parsed,
                 url: f.url,
                 observedAt: f.ts,
+                message: legacyMessage,
+                eventType: legacyType,
+                createdAt: typeof parsed?.createdAt === 'string' ? parsed.createdAt : null,
+              };
+            }
+
+            const envelopeType = typeof parsed?.type === 'string' ? parsed.type : '';
+            const payload =
+              parsed?.payload && typeof parsed.payload === 'object' ? parsed.payload : {};
+            const payloadMessage =
+              typeof payload?.message === 'string' ? String(payload.message).trim() : '';
+            if (
+              (envelopeType === 'assistant_chat_message' || envelopeType === 'chat_stream_chunk') &&
+              payloadMessage.length > 0
+            ) {
+              return {
+                frame: parsed,
+                url: f.url,
+                observedAt: f.ts,
+                message: payloadMessage,
+                eventType: envelopeType,
+                createdAt:
+                  typeof payload?.createdAt === 'string'
+                    ? payload.createdAt
+                    : typeof parsed?.timestamp === 'string'
+                      ? parsed.timestamp
+                      : null,
               };
             }
           } catch {
@@ -195,10 +376,22 @@ async function sendAndMeasure(page: Page, userId: number) {
   const metricsToDetail = (metrics: LatencyMetrics): string =>
     `avatar_ui_latency_ms=${metrics.avatarUiLatencyMs ?? 'n/a'}; ws_latency_ms=${metrics.wsLatencyMs ?? 'n/a'}; ui_minus_ws_ms=${metrics.uiMinusWsMs ?? 'n/a'}`;
 
+  const addContextToDetail = async (
+    base: string,
+    opts: { wsEvent?: WsAssistantEvent | null; uiObservedAt?: number | null },
+  ) => {
+    const wsUrls = await readWsUrls(page);
+    const wsCandidates = [opts.wsEvent?.url, ...wsUrls];
+    const scrUserID = wsCandidates.map((url) => parseScrUserId(url)).find((id) => !!id) ?? null;
+    const streamIds = streamCapture.streamIds.length ? streamCapture.streamIds.join('|') : 'n/a';
+    return `${base}; sent_at_utc=${isoTs(start)}; ws_at_utc=${isoTs(opts.wsEvent?.observedAt)}; ui_at_utc=${isoTs(opts.uiObservedAt ?? null)}; scr_user_id=${scrUserID ?? 'n/a'}; stream_ids=${streamIds}; stream_events=${streamCapture.events.length}`;
+  };
+
   try {
     await expect(newBotBubble).toBeVisible({ timeout: UI_ASSIST_TIMEOUT_MS });
     const replyText = await waitForAssistantText();
-    duration = Date.now() - start;
+    const uiObservedAt = Date.now();
+    duration = uiObservedAt - start;
     status = 'ok';
     const wsSignal = await Promise.race([
       wsPromise,
@@ -206,20 +399,46 @@ async function sendAndMeasure(page: Page, userId: number) {
     ]);
     const wsEvent = wsSignal && wsSignal.ok ? wsSignal.value : null;
     const metrics = calcMetrics(duration, wsEvent);
-    detail = metricsToDetail(metrics);
+    detail = await addContextToDetail(metricsToDetail(metrics), { wsEvent, uiObservedAt });
     const wsState = metrics.wsLatencyMs !== null ? 'ws+ui' : 'ui-only';
     console.log(
       `[VU ${userId}] reply in ${duration} ms (${wsState}, ws=${metrics.wsLatencyMs ?? 'n/a'} ms, ui-ws=${metrics.uiMinusWsMs ?? 'n/a'} ms): ${replyText.slice(0, 120)}`,
     );
+
+    await test.info().attach('load-timing-context', {
+      contentType: 'application/json',
+      body: Buffer.from(
+        JSON.stringify(
+          {
+            userId,
+            question,
+            status,
+            durationMs: duration,
+            sentAtUtc: isoTs(start),
+            wsAtUtc: isoTs(wsEvent?.observedAt),
+            uiAtUtc: isoTs(uiObservedAt),
+            wsEvent: wsEvent?.frame ?? null,
+            wsUrl: wsEvent?.url ?? null,
+            wsUrls: await readWsUrls(page),
+            streamCapture,
+          },
+          null,
+          2,
+        ),
+      ),
+    });
   } catch (err: any) {
     duration = Date.now() - start;
     const wsResult = await wsPromise;
     if (wsResult.ok && wsResult.value?.frame) {
       status = 'ui_not_rendered_ws_received';
-      const wsMessage = String(wsResult.value.frame?.message ?? '').replace(/\s+/g, ' ').trim();
+      const wsMessage = String(wsResult.value.message ?? '').replace(/\s+/g, ' ').trim();
       const wsPreview = wsMessage.slice(0, 160);
       const metrics = calcMetrics(null, wsResult.value);
-      detail = `${metricsToDetail(metrics)}; ws=true; message="${wsPreview}"`;
+      detail = await addContextToDetail(`${metricsToDetail(metrics)}; ws=true; message="${wsPreview}"`, {
+        wsEvent: wsResult.value,
+        uiObservedAt: null,
+      });
 
       await test.info().attach('ws-ui-mismatch', {
         contentType: 'application/json',
@@ -232,9 +451,11 @@ async function sendAndMeasure(page: Page, userId: number) {
               question,
               wsUrl: wsResult.value.url,
               wsObservedAt: wsResult.value.observedAt,
+              wsEventType: wsResult.value.eventType ?? null,
               wsMessage: wsMessage || null,
               uiError: err?.message || String(err),
               wsUrls: await page.evaluate(() => (window as any).__wsUrls || []),
+              streamCapture,
             },
             null,
             2,
@@ -254,7 +475,10 @@ async function sendAndMeasure(page: Page, userId: number) {
 
     const errText = err?.message?.toString?.() ?? String(err);
     status = /timeout/i.test(errText) ? 'timeout' : 'error';
-    detail = `avatar_ui_latency_ms=n/a; ws_latency_ms=n/a; ui_minus_ws_ms=n/a; error="${errText.slice(0, 160)}"`;
+    detail = await addContextToDetail(
+      `avatar_ui_latency_ms=n/a; ws_latency_ms=n/a; ui_minus_ws_ms=n/a; error="${errText.slice(0, 160)}"`,
+      { wsEvent: null, uiObservedAt: null },
+    );
     console.warn(`[VU ${userId}] reply failed (${status}) after ${duration} ms`);
     logResult(userId, duration, status, detail);
     throw err;

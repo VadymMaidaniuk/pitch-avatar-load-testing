@@ -1,7 +1,10 @@
 # Overview of chat-avatar communication
+> Update (2026-02-19): Current WebSocket contract uses protocol v2 envelopes and is maintained in `websocket-protocol-v2.md`.
+> This file contains historical captures; if field names conflict, `websocket-protocol-v2.md` is the source of truth.
+
 - Page: `https://slides.pitchavatar.com/qjs2y` loads a chat avatar player. On load it POSTs a screening login to get a bearer token and `scrUserID`, preloads parameters, opens two Socket.IO presence sockets plus a main WS at `wss://haproxy-prod.pitchavatar.com/ws?scrUserID=...`, and fetches chat history.
-- Text chat flows through the haproxy WS: client sends `report-actions` (including `screen_user_made_chat_message`) and `SetParameterValue`; server streams `parameter_value_changed` and `assistant_chat_message`. Presence socket.io channels mirror chat events as `ReportActionCreatedBroadcast`.
-- Sending a text message triggers both a REST `report-actions` POST and a WS message; server replies over WS with assistant messages and updates `Last Listener chat message`. Chat history is fetched via REST.
+- Text chat flows through the haproxy WS using envelope messages (`version`, `type`, `payload`): client sends `report_action` and `set_parameter`; server emits `assistant_chat_message`, `chat_stream_*`, and `parameter_changed`.
+- Sending a text message triggers both a REST `report-actions` POST and a WS `report_action`; server replies over WS with assistant messages (in `payload.message`) and updates listener state. Chat history is fetched via REST.
 - Reloading the page creates a new `scrUserID` and new tokens; all sockets reconnect with the new IDs; previous WS closes (no close code observed). Voice path was not exercised; only voice-recognition token retrieval and disabling voice recognition were observed.
 - Captures taken via Playwright headless with chat messages “Hello from automation 1” and “Second message after first” and a page reload. Observed IDs: `scrUserID` 368444 (first run) and 368448 (chat run). Bearer tokens: `riqxdq...` (first), `PYAxJR...` (chat); scr short link: `qjs2y`; screening id: 199901; presentation id: 60397; assistant userable_id: 11345; stream provider: `microsoft`; presenter_id: `matt-9C51DD6lgH`; driver_id: `mBHOFBuOHq`; streamId example: `strm_SWyEH22gfuMsn-_jFW6x1$v1_EKS`.
 
@@ -34,6 +37,10 @@ Key example payloads:
 ```
 
 # WebSocket Map
+> Protocol v2 envelope:
+> `{"version":"1.0","type":"<message_type>","trace_id":"<optional>","timestamp":"<optional>","payload":{...}}`
+> The rows below include legacy captures (`event_type`, `traceId`, `report-actions`) for historical context.
+
 ## Endpoint A (main chat/control)
 - URL: `wss://haproxy-prod.pitchavatar.com/ws?scrUserID=<scrUserID>`
 - Opened: after login/parameter setup; reopens after reload with new scrUserID.
@@ -75,14 +82,14 @@ Key example payloads:
    1. UI load → POST `/api/scr/qjs2y/login` (token + scrUserID).
    2. GET parameters; POST screening-parameters (languages); POST Voice Recognition Status; POST report-actions (`started_screening`, `changed_step`, `turn_off_voice_recognition`); GET config.
    3. WS `socket.io` opens; client subscribes to presence channels.
-   4. WS haproxy opens; client sends SetParameterValue + report-actions; server returns `parameter_value_changed`.
+   4. WS haproxy opens; client sends `set_parameter` + `report_action`; server returns `parameter_changed`.
    5. REST media setup: streams/connect → streams/sdp → streams/ice.
    6. GET `screening-chat-messages?scrUserID=<id>` for history.
 
 2) User sends a text message
    1. UI enter + Enter → REST POST `/report-actions` with `action":"screen_user_made_chat_message"`, `data.message`.
-   2. WS haproxy send same action with traceId.
-   3. Server WS responses: `parameter_value_changed` (`Last Listener chat message`, `Listener Has Posted a Chat Message`), `assistant_chat_message` reply; presence WS broadcasts `ReportActionCreatedBroadcast` containing action + `screening-chat-messages` record.
+   2. WS haproxy sends the same action in `report_action` envelope (`trace_id` optional).
+   3. Server WS responses: `parameter_changed` (`Last Listener chat message`, `Listener Has Posted a Chat Message`) and assistant events (`assistant_chat_message` or `chat_stream_*`); presence WS broadcasts `ReportActionCreatedBroadcast` containing action + `screening-chat-messages` record.
    4. REST GET chat history updates list (assistant + user messages).
 
 3) Voice/audio message (not observed)

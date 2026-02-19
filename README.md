@@ -21,6 +21,11 @@ Core settings:
 
 Audio and sync tuning: see `.env` for the full list of `CHAT_AUDIO_*` variables.
 
+## WebSocket Protocol
+- Current protocol contract is documented in `websocket-protocol-v2.md`.
+- WS tests in this repository are compatible with v2 envelope messages (`version`, `type`, `payload`)
+  and keep backward parsing for legacy frames where needed.
+
 Examples:
 - `npm run test:stage`
 - `$env:CHAT_ENV="dev"; npm test`

@@ -62,8 +62,41 @@ async function runScenario(page: Page, userId: number) {
       for (const f of frames) {
         try {
           const parsed = JSON.parse(f.data);
-          if (parsed?.event_type === 'assistant_chat_message' || parsed?.message) {
-            return { frame: parsed, url: f.url };
+          const legacyType = typeof parsed?.event_type === 'string' ? parsed.event_type : '';
+          const legacyMessage = typeof parsed?.message === 'string' ? parsed.message.trim() : '';
+          if (
+            (legacyType === 'assistant_chat_message' || legacyType === 'chat_stream_chunk') &&
+            legacyMessage.length > 0
+          ) {
+            return {
+              frame: parsed,
+              url: f.url,
+              message: legacyMessage,
+              eventType: legacyType,
+              createdAt: typeof parsed?.createdAt === 'string' ? parsed.createdAt : null,
+            };
+          }
+
+          const envelopeType = typeof parsed?.type === 'string' ? parsed.type : '';
+          const payload = parsed?.payload && typeof parsed.payload === 'object' ? parsed.payload : {};
+          const payloadMessage =
+            typeof payload?.message === 'string' ? String(payload.message).trim() : '';
+          if (
+            (envelopeType === 'assistant_chat_message' || envelopeType === 'chat_stream_chunk') &&
+            payloadMessage.length > 0
+          ) {
+            return {
+              frame: parsed,
+              url: f.url,
+              message: payloadMessage,
+              eventType: envelopeType,
+              createdAt:
+                typeof payload?.createdAt === 'string'
+                  ? payload.createdAt
+                  : typeof parsed?.timestamp === 'string'
+                    ? parsed.timestamp
+                    : null,
+            };
           }
         } catch {
           continue;
@@ -74,15 +107,17 @@ async function runScenario(page: Page, userId: number) {
     { timeout: UI_ASSIST_TIMEOUT_MS },
   );
 
-  const result = (await frameHandle.jsonValue()) as { frame: any; url: string } | null;
-  if (!result || !result.frame) {
+  const result = (await frameHandle.jsonValue()) as
+    | { frame: any; url: string; message: string; eventType: string; createdAt: string | null }
+    | null;
+  if (!result || !result.frame || !result.message) {
     throw new Error('No assistant_chat_message frame captured');
   }
 
-  expect(result.frame.message).toBeTruthy();
-  expect(String(result.frame.message).length).toBeGreaterThan(0);
-  if (result.frame.createdAt) {
-    expect(new Date(result.frame.createdAt).toString()).not.toBe('Invalid Date');
+  expect(result.message).toBeTruthy();
+  expect(String(result.message).length).toBeGreaterThan(0);
+  if (result.createdAt) {
+    expect(new Date(result.createdAt).toString()).not.toBe('Invalid Date');
   }
   const receivedTs = Date.now();
   const latencyMs = receivedTs - sendTs;
@@ -104,6 +139,8 @@ async function runScenario(page: Page, userId: number) {
         scrUserID,
         question,
         wsUrl: result.url,
+        wsEventType: result.eventType,
+        assistantMessage: result.message,
         event: result.frame,
         sendTimestamp: sendTs,
         receivedTimestamp: receivedTs,

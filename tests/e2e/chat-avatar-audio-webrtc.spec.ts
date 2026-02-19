@@ -43,6 +43,9 @@ type AudioStats = {
 
 type WsAssistantMessage = {
   frame: any;
+  message?: string;
+  eventType?: string;
+  createdAt?: string | null;
   wsUrl?: string;
   frameUrl?: string;
   observedAt?: number;
@@ -225,8 +228,44 @@ const waitForAssistantWsMessage = async (
             if (!f?.data) continue;
             try {
               const parsed = JSON.parse(f.data);
-              if (parsed?.event_type === 'assistant_chat_message' || parsed?.message) {
-                return { frame: parsed, wsUrl: f.url, observedAt: Date.now() };
+              const legacyType = typeof parsed?.event_type === 'string' ? parsed.event_type : '';
+              const legacyMessage = typeof parsed?.message === 'string' ? parsed.message.trim() : '';
+              if (
+                (legacyType === 'assistant_chat_message' || legacyType === 'chat_stream_chunk') &&
+                legacyMessage.length > 0
+              ) {
+                return {
+                  frame: parsed,
+                  wsUrl: f.url,
+                  observedAt: Date.now(),
+                  message: legacyMessage,
+                  eventType: legacyType,
+                  createdAt: typeof parsed?.createdAt === 'string' ? parsed.createdAt : null,
+                };
+              }
+
+              const envelopeType = typeof parsed?.type === 'string' ? parsed.type : '';
+              const payload =
+                parsed?.payload && typeof parsed.payload === 'object' ? parsed.payload : {};
+              const payloadMessage =
+                typeof payload?.message === 'string' ? String(payload.message).trim() : '';
+              if (
+                (envelopeType === 'assistant_chat_message' || envelopeType === 'chat_stream_chunk') &&
+                payloadMessage.length > 0
+              ) {
+                return {
+                  frame: parsed,
+                  wsUrl: f.url,
+                  observedAt: Date.now(),
+                  message: payloadMessage,
+                  eventType: envelopeType,
+                  createdAt:
+                    typeof payload?.createdAt === 'string'
+                      ? payload.createdAt
+                      : typeof parsed?.timestamp === 'string'
+                        ? parsed.timestamp
+                        : null,
+                };
               }
             } catch {
               // ignore non-json
@@ -552,8 +591,8 @@ async function runScenario(page: Page, userId: number) {
   await expect(chat.userBubble(question)).toBeVisible({ timeout: 20_000 });
 
   const assistantWs = await waitForAssistantWsMessage(page, UI_ASSIST_TIMEOUT_MS);
-  if (assistantWs.frame?.message) {
-    expect(String(assistantWs.frame.message).length).toBeGreaterThan(0);
+  if (assistantWs.message) {
+    expect(String(assistantWs.message).length).toBeGreaterThan(0);
   }
 
   const audioStats = await waitForInboundAudio(

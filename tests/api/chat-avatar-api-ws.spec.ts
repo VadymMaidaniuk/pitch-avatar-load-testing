@@ -24,15 +24,62 @@ const connectWs = (wsUrl: string) =>
   });
 
 const sendWsReportAction = (socket: WebSocket, action: string, data: Record<string, unknown> = {}) => {
-  const traceId = `Root=1-${Date.now().toString(16)}`;
+  const traceId = `Root=1-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
   const payload = {
-    data: {
-      type: 'report-actions',
-      attributes: { action, data },
+    version: '1.0',
+    type: 'report_action',
+    trace_id: traceId,
+    payload: {
+      action,
+      data,
     },
-    traceId,
   };
   socket.send(JSON.stringify(payload));
+};
+
+const extractAssistantFrameData = (
+  frame: any,
+): { message: string; createdAt?: string; eventType?: string } | null => {
+  if (!frame || typeof frame !== 'object') return null;
+
+  const legacyType = typeof frame.event_type === 'string' ? frame.event_type : '';
+  const legacyMessage = typeof frame.message === 'string' ? frame.message.trim() : '';
+  if (
+    (legacyType === 'assistant_chat_message' || legacyType === 'chat_stream_chunk') &&
+    legacyMessage.length > 0
+  ) {
+    return {
+      message: legacyMessage,
+      createdAt: typeof frame.createdAt === 'string' ? frame.createdAt : undefined,
+      eventType: legacyType,
+    };
+  }
+
+  const envelopeType = typeof frame.type === 'string' ? frame.type : '';
+  const payload =
+    frame.payload && typeof frame.payload === 'object'
+      ? (frame.payload as Record<string, unknown>)
+      : {};
+  const payloadMessage =
+    typeof payload.message === 'string' ? String(payload.message).trim() : '';
+  if (
+    (envelopeType === 'assistant_chat_message' || envelopeType === 'chat_stream_chunk') &&
+    payloadMessage.length > 0
+  ) {
+    const createdAt =
+      typeof payload.createdAt === 'string'
+        ? payload.createdAt
+        : typeof frame.timestamp === 'string'
+          ? frame.timestamp
+          : undefined;
+    return {
+      message: payloadMessage,
+      createdAt,
+      eventType: envelopeType,
+    };
+  }
+
+  return null;
 };
 
 const waitForAssistantMessage = (
@@ -40,7 +87,7 @@ const waitForAssistantMessage = (
   timeoutMs: number,
   frames: string[],
 ) =>
-  new Promise<{ frame: any; raw: string }>((resolve, reject) => {
+  new Promise<{ frame: any; raw: string; assistant: { message: string; createdAt?: string; eventType?: string } }>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
       cleanup();
       reject(new Error(`Assistant reply not received in ${timeoutMs}ms`));
@@ -55,9 +102,10 @@ const waitForAssistantMessage = (
       } catch {
         return;
       }
-      if (parsed?.event_type === 'assistant_chat_message' || parsed?.message) {
+      const assistant = extractAssistantFrameData(parsed);
+      if (assistant) {
         cleanup();
-        resolve({ frame: parsed, raw });
+        resolve({ frame: parsed, raw, assistant });
       }
     };
 
@@ -112,9 +160,9 @@ for (let userId = 1; userId <= UI_USERS; userId += 1) {
       sendWsReportAction(socket, 'screen_user_made_chat_message', { message: question });
 
       const result = await waitForReply;
-      expect(result.frame?.message).toBeTruthy();
-      if (result.frame?.createdAt) {
-        expect(new Date(result.frame.createdAt).toString()).not.toBe('Invalid Date');
+      expect(result.assistant.message).toBeTruthy();
+      if (result.assistant.createdAt) {
+        expect(new Date(result.assistant.createdAt).toString()).not.toBe('Invalid Date');
       }
 
       await test.info().attach('ws-assistant-event', {
@@ -124,6 +172,7 @@ for (let userId = 1; userId <= UI_USERS; userId += 1) {
             scrUserID,
             question,
             wsUrl,
+            assistant: result.assistant,
             event: result.frame,
             framesSample: frames.slice(0, 5),
           }),
