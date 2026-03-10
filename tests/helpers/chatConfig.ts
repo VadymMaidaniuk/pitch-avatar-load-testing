@@ -73,8 +73,13 @@ export const CMS_AVATAR_LANGUAGE_ID = stringEnv('CMS_AVATAR_LANGUAGE_ID') ?? 'en
 export const CMS_AVATAR_VOICE_ID = stringEnv('CMS_AVATAR_VOICE_ID');
 export const CMS_AVATAR_IMAGE_ID = stringEnv('CMS_AVATAR_IMAGE_ID');
 export const CMS_AVATAR_PROMPT = stringEnv('CMS_AVATAR_PROMPT') ?? 'test';
+export const CMS_AVATAR_ROLE_NAME = stringEnv('CMS_AVATAR_ROLE_NAME') ?? 'Test_avatar_creation_role';
 export const CMS_AVATAR_READY_TIMEOUT_MS = intEnv('CMS_AVATAR_READY_TIMEOUT_MS', 60_000) ?? 60_000;
 export const CMS_AVATAR_READY_POLL_MS = intEnv('CMS_AVATAR_READY_POLL_MS', 2_000) ?? 2_000;
+export const CMS_PRESENTATION_READY_TIMEOUT_MS =
+  intEnv('CMS_PRESENTATION_READY_TIMEOUT_MS', 180_000) ?? 180_000;
+export const CMS_PRESENTATION_READY_POLL_MS =
+  intEnv('CMS_PRESENTATION_READY_POLL_MS', 3_000) ?? 3_000;
 
 export const RUN_ID = process.env.CHAT_RUN_ID ?? `${Date.now()}`;
 export const WORKERS = intEnv('CHAT_WORKERS');
