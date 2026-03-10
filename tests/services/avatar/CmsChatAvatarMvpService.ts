@@ -70,8 +70,8 @@ export class CmsChatAvatarMvpService extends CmsChatAvatarBaseService {
     );
 
     const presentationTitle = `Widget_${name}`;
-    // Screening links are presentation-bound, so MVP uses an empty widget presentation.
-    await this.log(logger, 'Creating minimal widget presentation', {
+    // Screening links are presentation-bound, so MVP uses an empty avatar project presentation.
+    await this.log(logger, 'Creating minimal avatar project presentation', {
       presentationTitle,
     });
     const presentation = await this.cmsClient.createPresentation(accessToken, presentationTitle);
@@ -134,7 +134,7 @@ export class CmsChatAvatarMvpService extends CmsChatAvatarBaseService {
 
     const shortLink = screening.shortLink || extractShortLink(screening.url);
 
-    await this.log(logger, 'Widget avatar ready', {
+    await this.log(logger, 'MVP avatar ready', {
       assistantId: assistant.id,
       screeningId: screening.id,
       shortLink,

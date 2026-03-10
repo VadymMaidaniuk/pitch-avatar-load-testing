@@ -154,14 +154,14 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
     );
     const sourceSlidesCount = Math.max(sourcePresentationDetails.slidesCount ?? 0, 1);
 
-    const widgetTitle = `Widget_${name}`;
-    await this.log(logger, 'Creating target widget presentation', {
-      widgetTitle,
+    const targetPresentationTitle = `Widget_${name}`;
+    await this.log(logger, 'Creating target avatar presentation', {
+      targetPresentationTitle,
     });
-    const targetPresentation = await this.cmsClient.createPresentation(accessToken, widgetTitle);
+    const targetPresentation = await this.cmsClient.createPresentation(accessToken, targetPresentationTitle);
     await this.cmsClient.updatePresentationGoals(accessToken, targetPresentation.id);
 
-    await this.log(logger, 'Copying source presentation into widget target', {
+    await this.log(logger, 'Copying source presentation into target avatar presentation', {
       sourcePresentationId: sourcePresentation.id,
       targetPresentationId: targetPresentation.id,
       sourceSlidesCount,
@@ -177,7 +177,11 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
       sourceSlidesCount,
       logger,
     );
-    await this.cmsClient.updatePresentationTitle(accessToken, targetPresentation.id, widgetTitle);
+    await this.cmsClient.updatePresentationTitle(
+      accessToken,
+      targetPresentation.id,
+      targetPresentationTitle,
+    );
 
     const knowledgeContentIds: string[] = [];
     if (knowledge.length) {
