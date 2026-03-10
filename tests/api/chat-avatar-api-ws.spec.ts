@@ -1,7 +1,8 @@
 import { test, expect } from '../fixtures/test';
 import WebSocket from 'ws';
-import { UI_USERS, WS_ASSIST_TIMEOUT_MS, WS_BASE_URL } from '../helpers/chatConfig';
+import { UI_USERS, WS_BASE_URL } from '../helpers/chatConfig';
 import { buildQuestion } from '../helpers/chatQuestions';
+import { WS_ASSIST_TIMEOUT_MS } from '../helpers/chatRuntimeConfig';
 import { ScrApiClient } from '../services/api/ScrApiClient';
 
 const connectWs = (wsUrl: string) =>

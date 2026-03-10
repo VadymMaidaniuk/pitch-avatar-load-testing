@@ -2,7 +2,7 @@ import type { APIRequestContext } from '@playwright/test';
 import {
   CMS_AVATAR_LANGUAGE_ID,
   CMS_AVATAR_PROMPT,
-} from '../../helpers/chatConfig';
+} from '../../helpers/chatRuntimeConfig';
 import { CmsApiClient } from '../api/CmsApiClient';
 import {
   CmsChatAvatarBaseService,

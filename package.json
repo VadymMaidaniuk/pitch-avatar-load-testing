@@ -13,7 +13,12 @@
     "test:ui-ws": "playwright test tests/e2e/chat-avatar-ws-ui.spec.ts",
     "test:dev": "cross-env DOTENV_CONFIG_PATH=.env.dev CHAT_ENV=dev playwright test",
     "test:stage": "cross-env DOTENV_CONFIG_PATH=.env.stage CHAT_ENV=stage playwright test",
-    "test:prod": "cross-env DOTENV_CONFIG_PATH=.env.prod CHAT_ENV=prod playwright test"
+    "test:prod": "cross-env DOTENV_CONFIG_PATH=.env.prod CHAT_ENV=prod playwright test",
+    "test:cms-data:dev": "cross-env DOTENV_CONFIG_PATH=.env.dev CHAT_ENV=dev CHAT_RUN_CMS_DATA=1 playwright test tests/api/chat-avatar-cms-data.spec.ts",
+    "test:cms-data:stage": "cross-env DOTENV_CONFIG_PATH=.env.stage CHAT_ENV=stage CHAT_RUN_CMS_DATA=1 playwright test tests/api/chat-avatar-cms-data.spec.ts",
+    "test:cms-data:prod": "cross-env DOTENV_CONFIG_PATH=.env.prod CHAT_ENV=prod CHAT_RUN_CMS_DATA=1 playwright test tests/api/chat-avatar-cms-data.spec.ts",
+    "test:cms-data-video:stage": "cross-env DOTENV_CONFIG_PATH=.env.stage CHAT_ENV=stage CHAT_RUN_CMS_DATA_VIDEO=1 playwright test tests/api/chat-avatar-cms-data-video.spec.ts",
+    "test:cms-mvp:stage": "cross-env DOTENV_CONFIG_PATH=.env.stage CHAT_ENV=stage CHAT_RUN_CMS_MVP=1 playwright test tests/api/chat-avatar-cms-mvp.spec.ts"
   },
   "keywords": [],
   "author": "",

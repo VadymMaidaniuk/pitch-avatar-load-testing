@@ -30,19 +30,13 @@ const loadEnvFiles = () => {
 
 loadEnvFiles();
 
-const envWorkers = (() => {
-  const parsed = Number(process.env.CHAT_WORKERS);
-  if (Number.isFinite(parsed) && parsed > 0) return parsed;
-  return process.env.CI ? 1 : undefined;
-})();
-
 export default defineConfig({
   testDir: './tests',
   testMatch: ['**/{api,e2e,ui}/**/*.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: envWorkers,
+  workers: process.env.CI ? 1 : undefined,
   reporter: [
     ['list'],
     ['html', { open: 'never', outputFolder: 'playwright-report' }],

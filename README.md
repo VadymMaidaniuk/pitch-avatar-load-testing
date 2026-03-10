@@ -13,13 +13,13 @@ and audio playback/recording) across dev, stage, and prod.
 Environment files load in this order: `DOTENV_CONFIG_PATH`, `.env.<CHAT_ENV>`, `.env`.
 If nothing is set, `CHAT_ENV` defaults to `prod`.
 
-Core settings:
+Env files are intentionally kept small. Store only:
 - `CHAT_ENV`: `dev` | `stage` | `prod`
 - `CHAT_URL`, `SCR_SHORT_LINK`, `API_BASE_URL`, `WS_BASE_URL`
-- `CHAT_UI_USERS`, `CHAT_ASSIST_TIMEOUT_MS`, `CHAT_WS_ASSIST_TIMEOUT_MS`
-- `CHAT_WORKERS` (override Playwright workers)
+- `CMS_EMAIL`, `CMS_PASSWORD`
+- `CHAT_UI_USERS`
 
-Audio and sync tuning: see `.env` for the full list of `CHAT_AUDIO_*` variables.
+Non-secret defaults such as timeouts, polling, audio tuning, and CMS runtime defaults are centralized in `tests/helpers/chatRuntimeConfig.ts`.
 
 ## WebSocket Protocol
 - Current protocol contract is documented in `websocket-protocol-v2.md`.
@@ -28,6 +28,7 @@ Audio and sync tuning: see `.env` for the full list of `CHAT_AUDIO_*` variables.
 
 Examples:
 - `npm run test:stage`
+- `npm run test:cms-data:stage`
 - `$env:CHAT_ENV="dev"; npm test`
 
 ## Running Tests

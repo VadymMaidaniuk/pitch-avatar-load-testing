@@ -1,15 +1,14 @@
 import type { APIRequestContext } from '@playwright/test';
 import {
-  CMS_AVATAR_IMAGE_ID,
   CMS_AVATAR_LANGUAGE_ID,
   CMS_AVATAR_PROMPT,
   CMS_AVATAR_READY_POLL_MS,
   CMS_AVATAR_READY_TIMEOUT_MS,
   CMS_AVATAR_ROLE_NAME,
-  CMS_AVATAR_VOICE_ID,
+  CMS_VIDEO_AVATAR_READY_TIMEOUT_MS,
   CMS_PRESENTATION_READY_POLL_MS,
   CMS_PRESENTATION_READY_TIMEOUT_MS,
-} from '../../helpers/chatConfig';
+} from '../../helpers/chatRuntimeConfig';
 import {
   CmsApiClient,
   type CmsAvatarImageResource,
@@ -21,7 +20,12 @@ export type CmsChatAvatarLogger = (
 ) => void | Promise<void>;
 
 export type CmsResolvedAvatarImage = {
+  clipDriverId?: string | null;
+  clipPresenterId?: string | null;
   id: string;
+  isClip: boolean;
+  isStreamable?: boolean | null;
+  name?: string;
   url: string;
 };
 
@@ -69,7 +73,7 @@ export abstract class CmsChatAvatarBaseService {
   protected async resolveVoiceId(
     accessToken: string,
     languageId: string = CMS_AVATAR_LANGUAGE_ID,
-    preferredVoiceId: string | undefined = CMS_AVATAR_VOICE_ID,
+    preferredVoiceId?: string,
     logger?: CmsChatAvatarLogger,
   ): Promise<string> {
     if (preferredVoiceId) {
@@ -96,7 +100,7 @@ export abstract class CmsChatAvatarBaseService {
 
   protected async resolveAvatarImage(
     accessToken: string,
-    preferredAvatarImageId: string | undefined = CMS_AVATAR_IMAGE_ID,
+    preferredAvatarImageId?: string,
     logger?: CmsChatAvatarLogger,
   ): Promise<CmsResolvedAvatarImage> {
     if (preferredAvatarImageId) {
@@ -121,6 +125,43 @@ export abstract class CmsChatAvatarBaseService {
     await this.log(logger, 'Avatar image resolved', {
       avatarImageId: resolved.id,
       avatarImageUrl: resolved.url,
+    });
+    return resolved;
+  }
+
+  protected async resolveVideoAvatarImage(
+    accessToken: string,
+    preferredAvatarImageId?: string,
+    logger?: CmsChatAvatarLogger,
+  ): Promise<CmsResolvedAvatarImage> {
+    if (preferredAvatarImageId) {
+      await this.log(logger, 'Using configured video avatar image', {
+        avatarImageId: preferredAvatarImageId,
+      });
+      const resource = await this.cmsClient.getAvatarImage(accessToken, preferredAvatarImageId);
+      const resolved = this.toResolvedAvatarImage(resource);
+      if (!resolved.isClip) {
+        throw new Error(
+          `Configured avatar image ${preferredAvatarImageId} is not clip-capable and cannot be used for video avatar mode`,
+        );
+      }
+      return resolved;
+    }
+
+    await this.log(logger, 'Resolving first clip-capable video avatar image');
+    const images = await this.cmsClient.listAvatarImages(accessToken);
+    const preferred = images.find((image) => hasClipMetadata(image));
+
+    if (!preferred) {
+      throw new Error('No clip-capable avatar image found for video avatar flow');
+    }
+
+    const resolved = this.toResolvedAvatarImage(preferred);
+    await this.log(logger, 'Video avatar image resolved', {
+      avatarImageId: resolved.id,
+      avatarImageName: resolved.name ?? '',
+      clipPresenterId: resolved.clipPresenterId ?? '',
+      clipDriverId: resolved.clipDriverId ?? '',
     });
     return resolved;
   }
@@ -162,8 +203,9 @@ export abstract class CmsChatAvatarBaseService {
     accessToken: string,
     assistantId: string,
     logger?: CmsChatAvatarLogger,
+    timeoutMs: number = CMS_AVATAR_READY_TIMEOUT_MS,
   ): Promise<void> {
-    const deadline = Date.now() + CMS_AVATAR_READY_TIMEOUT_MS;
+    const deadline = Date.now() + timeoutMs;
     let lastStatus: string | null | undefined;
 
     while (Date.now() <= deadline) {
@@ -194,8 +236,12 @@ export abstract class CmsChatAvatarBaseService {
     }
 
     throw new Error(
-      `Assistant ${assistantId} did not reach success within ${CMS_AVATAR_READY_TIMEOUT_MS}ms`,
+      `Assistant ${assistantId} did not reach success within ${timeoutMs}ms`,
     );
+  }
+
+  protected getAssistantReadyTimeout(isVideoAvatar: boolean): number {
+    return isVideoAvatar ? CMS_VIDEO_AVATAR_READY_TIMEOUT_MS : CMS_AVATAR_READY_TIMEOUT_MS;
   }
 
   protected async waitForPresentationReady(
@@ -257,8 +303,14 @@ export abstract class CmsChatAvatarBaseService {
       throw new Error(`Avatar image ${resource.id || '<unknown>'} is missing a usable image URL`);
     }
 
+    const extraData = resource.attributes?.extra_data;
     return {
+      clipDriverId: extraData?.driver_id ?? null,
+      clipPresenterId: extraData?.presenter_id ?? null,
       id: String(resource.id),
+      isClip: hasClipMetadata(resource),
+      isStreamable: extraData?.is_streamable ?? resource.attributes?.is_streamable ?? null,
+      name: resource.attributes?.name ?? undefined,
       url,
     };
   }

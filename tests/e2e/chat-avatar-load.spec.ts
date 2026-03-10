@@ -2,8 +2,9 @@ import { test, expect } from '../fixtures/test';
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { UI_USERS, UI_ASSIST_TIMEOUT_MS, RUN_ID } from '../helpers/chatConfig';
+import { UI_USERS } from '../helpers/chatConfig';
 import { buildQuestion } from '../helpers/chatQuestions';
+import { LOG_RUN_ID, UI_ASSIST_TIMEOUT_MS } from '../helpers/chatRuntimeConfig';
 import { ChatPage } from '../pages/ChatPage';
 
 test.describe.configure({ mode: 'parallel' });
@@ -11,7 +12,6 @@ test.describe.configure({ mode: 'parallel' });
 test.use({ headless: false });
 
 const LOG_DIR = path.join(__dirname, '..', '..', 'test-results');
-const LOG_RUN_ID = process.env.CHAT_LOG_RUN_ID ?? RUN_ID;
 const LOG_FILE = path.join(LOG_DIR, `chat-reply-times-${LOG_RUN_ID}.log`);
 const TEST_TIMEOUT_MS = Math.max(UI_ASSIST_TIMEOUT_MS + 120_000, 180_000);
 

@@ -1,6 +1,6 @@
 import { basename, extname } from 'node:path';
 import type { APIRequestContext } from '@playwright/test';
-import { CMS_AVATAR_LANGUAGE_ID } from '../../helpers/chatConfig';
+import { CMS_AVATAR_LANGUAGE_ID } from '../../helpers/chatRuntimeConfig';
 import { CmsApiClient } from '../api/CmsApiClient';
 import {
   CmsChatAvatarBaseService,
@@ -41,6 +41,7 @@ export type CmsKnowledgeInput =
 
 export type CreateCmsChatAvatarDataOptions = {
   avatarImageId?: string;
+  avatarMode?: 'video' | 'voice_only';
   chatName?: string;
   email?: string;
   knowledge?: CmsKnowledgeInput[];
@@ -88,6 +89,7 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
     options: CreateCmsChatAvatarDataOptions,
   ): Promise<CreatedCmsChatAvatarData> {
     const logger = options.logger;
+    const avatarMode = options.avatarMode ?? 'voice_only';
     const name = options.name?.trim() || `aqa-data-avatar-${Date.now()}`;
     const chatName = options.chatName?.trim() || name;
     const languageId = options.languageId?.trim() || CMS_AVATAR_LANGUAGE_ID;
@@ -103,11 +105,17 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
       options.voiceId?.trim(),
       logger,
     );
-    const avatarImage = await this.resolveAvatarImage(
-      accessToken,
-      options.avatarImageId?.trim(),
-      logger,
-    );
+    const avatarImage = avatarMode === 'video'
+      ? await this.resolveVideoAvatarImage(
+          accessToken,
+          options.avatarImageId?.trim(),
+          logger,
+        )
+      : await this.resolveAvatarImage(
+          accessToken,
+          options.avatarImageId?.trim(),
+          logger,
+        );
     const role = await this.resolveRole(
       accessToken,
       options.roleName,
@@ -199,6 +207,14 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
       avatarImageId: avatarImage.id,
       avatarImageUrl: avatarImage.url,
       presentationId: targetPresentation.id,
+      videoAvatar: avatarMode === 'video'
+        ? {
+            enabled: true,
+            clipDriverId: avatarImage.clipDriverId,
+            clipPresenterId: avatarImage.clipPresenterId,
+            isStreamable: avatarImage.isStreamable,
+          }
+        : undefined,
     });
 
     await this.log(logger, 'Generating assistant media', {
@@ -211,7 +227,12 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
       assistant.id,
       true,
     );
-    await this.waitForAssistantSuccess(accessToken, assistant.id, logger);
+    await this.waitForAssistantSuccess(
+      accessToken,
+      assistant.id,
+      logger,
+      this.getAssistantReadyTimeout(avatarMode === 'video'),
+    );
 
     await this.log(logger, 'Creating public link', {
       assistantId: assistant.id,

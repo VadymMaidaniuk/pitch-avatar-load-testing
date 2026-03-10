@@ -1,8 +1,21 @@
 import { test, expect } from '../fixtures/test';
 import type { Frame, Locator, Page, TestInfo } from '@playwright/test';
 import fs from 'fs';
-import { UI_ASSIST_TIMEOUT_MS, UI_USERS } from '../helpers/chatConfig';
+import { UI_USERS } from '../helpers/chatConfig';
 import { buildQuestion } from '../helpers/chatQuestions';
+import {
+  AUDIO_ENERGY_DELTA,
+  AUDIO_LEVEL_THRESHOLD,
+  AUDIO_MIN_BYTES,
+  AUDIO_MIN_PACKETS,
+  AUDIO_RECORD_MAX_MS,
+  AUDIO_RECORD_MIME,
+  AUDIO_RECORD_POLL_MS,
+  AUDIO_RECORD_SILENCE_MS,
+  AUDIO_RECORD_WAIT_MS,
+  AUDIO_TIMEOUT_MS,
+  UI_ASSIST_TIMEOUT_MS,
+} from '../helpers/chatRuntimeConfig';
 import { ChatPage } from '../pages/ChatPage';
 
 test.use({
@@ -11,31 +24,6 @@ test.use({
     args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream'],
   },
 });
-
-const intEnv = (name: string, fallback: number): number => {
-  const raw = process.env[name];
-  const parsed = raw ? parseInt(raw, 10) : NaN;
-  if (Number.isFinite(parsed) && parsed > 0) return parsed;
-  return fallback;
-};
-
-const floatEnv = (name: string, fallback: number): number => {
-  const raw = process.env[name];
-  const parsed = raw ? parseFloat(raw) : NaN;
-  if (Number.isFinite(parsed) && parsed >= 0) return parsed;
-  return fallback;
-};
-
-const AUDIO_TIMEOUT_MS = intEnv('CHAT_AUDIO_TIMEOUT_MS', UI_ASSIST_TIMEOUT_MS);
-const AUDIO_MIN_BYTES = intEnv('CHAT_AUDIO_MIN_BYTES', 1);
-const AUDIO_MIN_PACKETS = intEnv('CHAT_AUDIO_MIN_PACKETS', 1);
-const AUDIO_RECORD_MAX_MS = intEnv('CHAT_AUDIO_RECORD_MS', 30000);
-const AUDIO_RECORD_SILENCE_MS = intEnv('CHAT_AUDIO_RECORD_SILENCE_MS', 2000);
-const AUDIO_RECORD_WAIT_MS = intEnv('CHAT_AUDIO_RECORD_WAIT_MS', 15000);
-const AUDIO_RECORD_POLL_MS = intEnv('CHAT_AUDIO_RECORD_POLL_MS', 250);
-const AUDIO_RECORD_MIME = process.env.CHAT_AUDIO_RECORD_MIME || '';
-const AUDIO_LEVEL_THRESHOLD = floatEnv('CHAT_AUDIO_LEVEL_THRESHOLD', 0.02);
-const AUDIO_ENERGY_DELTA = floatEnv('CHAT_AUDIO_ENERGY_DELTA', 0.001);
 
 type AudioStats = {
   frameCount: number;

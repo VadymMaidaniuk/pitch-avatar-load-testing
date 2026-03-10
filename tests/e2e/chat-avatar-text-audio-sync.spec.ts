@@ -1,7 +1,17 @@
 import { test, expect } from '../fixtures/test';
 import type { Locator, Page } from '@playwright/test';
-import { UI_ASSIST_TIMEOUT_MS, UI_USERS } from '../helpers/chatConfig';
+import { UI_USERS } from '../helpers/chatConfig';
 import { buildQuestion } from '../helpers/chatQuestions';
+import {
+  AUDIO_ENERGY_DELTA,
+  AUDIO_ENERGY_POLL_MS,
+  AUDIO_ENERGY_WAIT_MS,
+  AUDIO_LEVEL_THRESHOLD,
+  AUDIO_PLAYBACK_WAIT_MS,
+  AUDIO_SYNC_POLL_MS,
+  AUDIO_TIMEOUT_MS,
+  UI_ASSIST_TIMEOUT_MS,
+} from '../helpers/chatRuntimeConfig';
 import { ChatPage } from '../pages/ChatPage';
 
 test.use({
@@ -10,28 +20,6 @@ test.use({
     args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream'],
   },
 });
-
-const intEnv = (name: string, fallback: number): number => {
-  const raw = process.env[name];
-  const parsed = raw ? parseInt(raw, 10) : NaN;
-  if (Number.isFinite(parsed) && parsed > 0) return parsed;
-  return fallback;
-};
-
-const floatEnv = (name: string, fallback: number): number => {
-  const raw = process.env[name];
-  const parsed = raw ? parseFloat(raw) : NaN;
-  if (Number.isFinite(parsed) && parsed >= 0) return parsed;
-  return fallback;
-};
-
-const AUDIO_TIMEOUT_MS = intEnv('CHAT_AUDIO_TIMEOUT_MS', UI_ASSIST_TIMEOUT_MS);
-const AUDIO_PLAYBACK_WAIT_MS = intEnv('CHAT_AUDIO_PLAYBACK_WAIT_MS', 5000);
-const AUDIO_SYNC_POLL_MS = intEnv('CHAT_AUDIO_SYNC_POLL_MS', 500);
-const AUDIO_ENERGY_WAIT_MS = intEnv('CHAT_AUDIO_ENERGY_WAIT_MS', AUDIO_PLAYBACK_WAIT_MS);
-const AUDIO_ENERGY_POLL_MS = intEnv('CHAT_AUDIO_ENERGY_POLL_MS', 250);
-const AUDIO_LEVEL_THRESHOLD = floatEnv('CHAT_AUDIO_LEVEL_THRESHOLD', 0.02);
-const AUDIO_ENERGY_DELTA = floatEnv('CHAT_AUDIO_ENERGY_DELTA', 0.001);
 
 type AudioStats = {
   frameCount: number;

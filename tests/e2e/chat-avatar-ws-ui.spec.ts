@@ -1,7 +1,8 @@
 import { test, expect } from '../fixtures/test';
 import type { Page } from '@playwright/test';
-import { UI_ASSIST_TIMEOUT_MS, UI_USERS } from '../helpers/chatConfig';
+import { UI_USERS } from '../helpers/chatConfig';
 import { buildQuestion } from '../helpers/chatQuestions';
+import { UI_ASSIST_TIMEOUT_MS } from '../helpers/chatRuntimeConfig';
 import { ChatPage } from '../pages/ChatPage';
 
 async function runScenario(page: Page, userId: number) {

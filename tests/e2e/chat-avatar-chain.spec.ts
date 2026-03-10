@@ -1,7 +1,8 @@
 import { test, expect } from '../fixtures/test';
 import type { Locator, Page } from '@playwright/test';
-import { UI_ASSIST_TIMEOUT_MS, UI_USERS } from '../helpers/chatConfig';
+import { UI_USERS } from '../helpers/chatConfig';
 import { buildQuestion } from '../helpers/chatQuestions';
+import { UI_ASSIST_TIMEOUT_MS } from '../helpers/chatRuntimeConfig';
 import { ChatPage } from '../pages/ChatPage';
 
 // UI reply text is not rendered in headless (bubbles stay with loader SVG), so run headed.

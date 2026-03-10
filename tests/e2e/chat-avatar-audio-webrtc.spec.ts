@@ -1,7 +1,15 @@
 import { test, expect } from '../fixtures/test';
 import type { Page } from '@playwright/test';
-import { UI_ASSIST_TIMEOUT_MS, UI_USERS } from '../helpers/chatConfig';
+import { UI_USERS } from '../helpers/chatConfig';
 import { buildQuestion } from '../helpers/chatQuestions';
+import {
+  AUDIO_GROWTH_WAIT_MS,
+  AUDIO_MIN_BYTES,
+  AUDIO_MIN_PACKETS,
+  AUDIO_PLAYBACK_WAIT_MS,
+  AUDIO_TIMEOUT_MS,
+  UI_ASSIST_TIMEOUT_MS,
+} from '../helpers/chatRuntimeConfig';
 import { ChatPage } from '../pages/ChatPage';
 
 test.use({
@@ -10,19 +18,6 @@ test.use({
     args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream'],
   },
 });
-
-const intEnv = (name: string, fallback: number): number => {
-  const raw = process.env[name];
-  const parsed = raw ? parseInt(raw, 10) : NaN;
-  if (Number.isFinite(parsed) && parsed > 0) return parsed;
-  return fallback;
-};
-
-const AUDIO_TIMEOUT_MS = intEnv('CHAT_AUDIO_TIMEOUT_MS', UI_ASSIST_TIMEOUT_MS);
-const AUDIO_MIN_BYTES = intEnv('CHAT_AUDIO_MIN_BYTES', 1);
-const AUDIO_MIN_PACKETS = intEnv('CHAT_AUDIO_MIN_PACKETS', 1);
-const AUDIO_GROWTH_WAIT_MS = intEnv('CHAT_AUDIO_GROWTH_WAIT_MS', 1500);
-const AUDIO_PLAYBACK_WAIT_MS = intEnv('CHAT_AUDIO_PLAYBACK_WAIT_MS', 5000);
 
 type AudioStats = {
   frameCount: number;

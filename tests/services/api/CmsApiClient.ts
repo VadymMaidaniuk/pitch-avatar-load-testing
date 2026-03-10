@@ -87,6 +87,7 @@ export type CmsSpeechVoiceResource = JsonApiResource<{
 }>;
 
 export type CmsAvatarImageResource = JsonApiResource<{
+  name?: string | null;
   extra_data?: {
     driver_id?: string | null;
     presenter_id?: string | null;
@@ -109,6 +110,12 @@ export type CreateCmsAssistantInput = {
   avatarImageId: string;
   avatarImageUrl: string;
   presentationId: string;
+  videoAvatar?: {
+    clipDriverId?: string | null;
+    clipPresenterId?: string | null;
+    enabled: boolean;
+    isStreamable?: boolean | null;
+  };
 };
 
 export type CreateCmsScreeningResult = {
@@ -463,6 +470,11 @@ export class CmsApiClient {
     accessToken: string,
     input: CreateCmsAssistantInput,
   ): Promise<{ id: string }> {
+    const isVideoAvatarEnabled = Boolean(input.videoAvatar?.enabled);
+    const isClipAvatar = isVideoAvatarEnabled && Boolean(
+      input.videoAvatar?.clipDriverId || input.videoAvatar?.clipPresenterId,
+    );
+
     const response = await this.request.post(`${this.baseUrl}/assistants`, {
       headers: this.buildJsonApiHeaders(accessToken),
       data: {
@@ -474,12 +486,19 @@ export class CmsApiClient {
             language_id: input.languageId,
             is_active: true,
             instructions: '',
-            is_video_avatar_enabled: false,
+            is_video_avatar_enabled: isVideoAvatarEnabled,
             is_voiceover_enabled: true,
             is_voice_recognition_enabled: false,
             avatar_settings: {
-              video_type: 'talk',
-              talk_image_url: input.avatarImageUrl,
+              video_type: isClipAvatar ? 'clip' : 'talk',
+              ...(isClipAvatar
+                ? {
+                    clip_driver_id: input.videoAvatar?.clipDriverId ?? null,
+                    clip_presenter_id: input.videoAvatar?.clipPresenterId ?? null,
+                  }
+                : {
+                    talk_image_url: input.avatarImageUrl,
+                  }),
               audio: {
                 vendor: 'internal',
                 speech_voice_id: input.voiceId,
@@ -487,7 +506,7 @@ export class CmsApiClient {
               lipsync: {
                 avatar_image_id: input.avatarImageId,
               },
-              is_streamable: true,
+              is_streamable: input.videoAvatar?.isStreamable ?? true,
             },
             pst_content: [],
             prompt: input.prompt,
