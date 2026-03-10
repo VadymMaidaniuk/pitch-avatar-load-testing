@@ -37,17 +37,25 @@ for (const scenarioName of SCENARIOS) {
     });
     const finishedAt = Date.now();
     const timings = summarizeCmsAvatarTimings(steps, startedAt, finishedAt);
-    const timingLog = {
+    const presentationTimingLog = {
       sourcePresentationId: timings.sourcePresentationId,
+      sourcePresentationUploadMs: timings.sourcePresentationUploadMs,
+      sourcePresentationUploadSec:
+        timings.sourcePresentationUploadMs !== null
+          ? Number((timings.sourcePresentationUploadMs / 1000).toFixed(1))
+          : null,
       sourcePresentationParsingMs: timings.sourcePresentationParsingMs,
       sourcePresentationParsingSec:
         timings.sourcePresentationParsingMs !== null
           ? Number((timings.sourcePresentationParsingMs / 1000).toFixed(1))
           : null,
+    };
+    const creationTimingLog = {
       totalCreationMs: timings.totalCreationMs,
       totalCreationSec: Number((timings.totalCreationMs / 1000).toFixed(1)),
     };
-    console.log(`[CMS Avatar Data][${scenarioName}] Timing summary ${JSON.stringify(timingLog)}`);
+    console.log(`[CMS Avatar Data][${scenarioName}] Presentation timing ${JSON.stringify(presentationTimingLog)}`);
+    console.log(`[CMS Avatar Data][${scenarioName}] Creation timing ${JSON.stringify(creationTimingLog)}`);
 
     expect(result.assistantId).toBeTruthy();
     expect(result.presentationId).toBeTruthy();
@@ -58,7 +66,20 @@ for (const scenarioName of SCENARIOS) {
 
     await testInfo.attach(`cms-chat-avatar-data-${scenarioName}`, {
       contentType: 'application/json',
-      body: Buffer.from(JSON.stringify({ result, steps, timings: timingLog }, null, 2)),
+      body: Buffer.from(
+        JSON.stringify(
+          {
+            result,
+            steps,
+            timings: {
+              presentation: presentationTimingLog,
+              creation: creationTimingLog,
+            },
+          },
+          null,
+          2,
+        ),
+      ),
     });
   });
 }

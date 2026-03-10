@@ -142,11 +142,15 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
       sourcePresentationId: sourcePresentation.id,
       filePath: options.presentation.filePath,
     });
-    await this.cmsClient.uploadPresentationFile(
+    const sourcePresentationFile = await this.cmsClient.uploadPresentationFile(
       accessToken,
       sourcePresentation.id,
       options.presentation.filePath,
     );
+    await this.log(logger, 'Source presentation file uploaded', {
+      sourcePresentationId: sourcePresentation.id,
+      fileId: sourcePresentationFile.id,
+    });
     await this.waitForPresentationReady(accessToken, sourcePresentation.id, 1, logger);
     const sourcePresentationDetails = await this.cmsClient.getPresentation(
       accessToken,

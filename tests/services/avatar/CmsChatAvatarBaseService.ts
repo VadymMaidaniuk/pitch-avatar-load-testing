@@ -36,6 +36,7 @@ export type CmsResolvedRole = {
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const TERMINAL_FAILURE_STATUSES = new Set(['error', 'failed', 'fail', 'canceled', 'cancelled']);
 
 const resolveAvatarImageUrl = (resource: CmsAvatarImageResource): string | undefined =>
   resource.attributes?.plane_image_url ?? resource.attributes?.image_url ?? undefined;
@@ -220,7 +221,11 @@ export abstract class CmsChatAvatarBaseService {
         return;
       }
 
-      if (status && ['error', 'failed'].includes(status)) {
+      if (status && TERMINAL_FAILURE_STATUSES.has(status)) {
+        await this.log(logger, 'Assistant generation failed', {
+          assistantId,
+          status,
+        });
         throw new Error(`Assistant ${assistantId} generation failed with status "${status}"`);
       }
 
@@ -267,7 +272,12 @@ export abstract class CmsChatAvatarBaseService {
         return;
       }
 
-      if (status && ['error', 'failed'].includes(status)) {
+      if (status && TERMINAL_FAILURE_STATUSES.has(status)) {
+        await this.log(logger, 'Presentation parsing failed', {
+          presentationId,
+          status,
+          slidesCount,
+        });
         throw new Error(`Presentation ${presentationId} parsing failed with status "${status}"`);
       }
 

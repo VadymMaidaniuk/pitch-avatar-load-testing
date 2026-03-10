@@ -6,6 +6,7 @@ export type CmsAvatarLoggedStep = {
 
 export type CmsAvatarTimingSummary = {
   sourcePresentationId?: string;
+  sourcePresentationUploadMs: number | null;
   sourcePresentationParsingMs: number | null;
   totalCreationMs: number;
 };
@@ -24,6 +25,13 @@ export const summarizeCmsAvatarTimings = (
       stringValue(step.context?.sourcePresentationId),
   );
   const sourcePresentationId = stringValue(uploadStep?.context?.sourcePresentationId);
+  const uploadCompletedStep = sourcePresentationId
+    ? steps.find(
+        (step) =>
+          step.message === 'Source presentation file uploaded' &&
+          stringValue(step.context?.sourcePresentationId) === sourcePresentationId,
+      )
+    : undefined;
   const parsingCompletedStep = sourcePresentationId
     ? steps.find(
         (step) =>
@@ -34,8 +42,12 @@ export const summarizeCmsAvatarTimings = (
 
   return {
     sourcePresentationId,
+    sourcePresentationUploadMs:
+      uploadStep && uploadCompletedStep ? uploadCompletedStep.ts - uploadStep.ts : null,
     sourcePresentationParsingMs:
-      uploadStep && parsingCompletedStep ? parsingCompletedStep.ts - uploadStep.ts : null,
+      uploadCompletedStep && parsingCompletedStep
+        ? parsingCompletedStep.ts - uploadCompletedStep.ts
+        : null,
     totalCreationMs: finishedAt - startedAt,
   };
 };
