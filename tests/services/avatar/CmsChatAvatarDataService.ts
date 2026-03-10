@@ -179,6 +179,7 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
     );
     await this.cmsClient.updatePresentationTitle(accessToken, targetPresentation.id, widgetTitle);
 
+    const knowledgeContentIds: string[] = [];
     if (knowledge.length) {
       await this.log(logger, 'Adding knowledge sources', {
         presentationId: targetPresentation.id,
@@ -186,7 +187,9 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
       });
     }
     for (const item of knowledge) {
-      await this.addKnowledgeSource(accessToken, targetPresentation.id, item, logger);
+      knowledgeContentIds.push(
+        await this.addKnowledgeSource(accessToken, targetPresentation.id, item, logger),
+      );
     }
 
     await this.log(logger, 'Creating assistant', {
@@ -196,12 +199,14 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
       roleName: role.name,
       voiceId,
       avatarImageId: avatarImage.id,
+      knowledgeContentIds,
     });
     const assistant = await this.cmsClient.createAssistant(accessToken, {
       name,
       chatName,
       languageId,
       prompt: role.prompt,
+      pstContentIds: knowledgeContentIds,
       roleId: role.id,
       voiceId,
       avatarImageId: avatarImage.id,
@@ -225,7 +230,7 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
       accessToken,
       targetPresentation.id,
       assistant.id,
-      true,
+      false,
     );
     await this.waitForAssistantSuccess(
       accessToken,
@@ -280,7 +285,7 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
     presentationId: string,
     item: CmsKnowledgeInput,
     logger?: CmsChatAvatarLogger,
-  ): Promise<void> {
+  ): Promise<string> {
     switch (item.type) {
       case 'file': {
         const name = trimName(item.name || basename(item.filePath));
@@ -290,14 +295,14 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
           name,
         });
         const tmpFileUrl = await this.cmsClient.uploadTmpFile(accessToken, item.filePath);
-        await this.cmsClient.createKnowledgeFile(
+        const content = await this.cmsClient.createKnowledgeFile(
           accessToken,
           presentationId,
           name,
           tmpFileUrl,
           item.parseImages ?? true,
         );
-        return;
+        return content.id;
       }
       case 'link': {
         const name = trimName(item.name || item.url);
@@ -306,14 +311,14 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
           name,
           url: item.url,
         });
-        await this.cmsClient.createKnowledgeLink(
+        const content = await this.cmsClient.createKnowledgeLink(
           accessToken,
           presentationId,
           name,
           item.url,
           item.parseImages ?? true,
         );
-        return;
+        return content.id;
       }
       case 'text': {
         const name = trimName(item.name || item.text);
@@ -321,13 +326,13 @@ export class CmsChatAvatarDataService extends CmsChatAvatarBaseService {
           presentationId,
           name,
         });
-        await this.cmsClient.createKnowledgeText(
+        const content = await this.cmsClient.createKnowledgeText(
           accessToken,
           presentationId,
           name,
           item.text,
         );
-        return;
+        return content.id;
       }
     }
   }

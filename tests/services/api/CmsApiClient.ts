@@ -105,6 +105,7 @@ export type CreateCmsAssistantInput = {
   chatName: string;
   languageId: string;
   prompt: string;
+  pstContentIds?: string[];
   roleId?: string;
   voiceId: string;
   avatarImageId: string;
@@ -491,14 +492,13 @@ export class CmsApiClient {
             is_voice_recognition_enabled: false,
             avatar_settings: {
               video_type: isClipAvatar ? 'clip' : 'talk',
+              talk_image_url: input.avatarImageUrl,
               ...(isClipAvatar
                 ? {
                     clip_driver_id: input.videoAvatar?.clipDriverId ?? null,
                     clip_presenter_id: input.videoAvatar?.clipPresenterId ?? null,
                   }
-                : {
-                    talk_image_url: input.avatarImageUrl,
-                  }),
+                : {}),
               audio: {
                 vendor: 'internal',
                 speech_voice_id: input.voiceId,
@@ -508,7 +508,7 @@ export class CmsApiClient {
               },
               is_streamable: input.videoAvatar?.isStreamable ?? true,
             },
-            pst_content: [],
+            pst_content: input.pstContentIds ?? [],
             prompt: input.prompt,
             is_draft: false,
             pretranslate_enabled: false,

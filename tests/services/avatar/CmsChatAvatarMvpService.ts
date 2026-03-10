@@ -107,7 +107,7 @@ export class CmsChatAvatarMvpService extends CmsChatAvatarBaseService {
       accessToken,
       presentation.id,
       assistant.id,
-      true,
+      false,
     );
     await this.waitForAssistantSuccess(accessToken, assistant.id, logger);
 
