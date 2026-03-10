@@ -7,6 +7,11 @@ const intEnv = (name: string, fallback?: number): number | undefined => {
   return fallback;
 };
 
+const stringEnv = (name: string): string | undefined => {
+  const raw = process.env[name]?.trim();
+  return raw ? raw : undefined;
+};
+
 const rawEnv =
   process.env.CHAT_ENV ??
   process.env.NODE_ENV ??
@@ -55,11 +60,21 @@ export const CHAT_URL = pick('chatUrl', process.env.CHAT_URL);
 export const API_BASE_URL = pick('apiBase', process.env.API_BASE_URL);
 export const WS_BASE_URL = pick('wsBase', process.env.WS_BASE_URL);
 export const SCR_SHORT_LINK = pick('shortLink', process.env.SCR_SHORT_LINK);
+export const CMS_API_BASE_URL = `${API_BASE_URL}/api/cms`;
 
 export const UI_USERS = intEnv('CHAT_UI_USERS', intEnv('CHAT_TEST_USERS', 1)) ?? 1;
 
 export const UI_ASSIST_TIMEOUT_MS = intEnv('CHAT_ASSIST_TIMEOUT_MS', 60_000) ?? 60_000;
 export const WS_ASSIST_TIMEOUT_MS = intEnv('CHAT_WS_ASSIST_TIMEOUT_MS', 45_000) ?? 45_000;
+
+export const CMS_EMAIL = stringEnv('CMS_EMAIL');
+export const CMS_PASSWORD = stringEnv('CMS_PASSWORD');
+export const CMS_AVATAR_LANGUAGE_ID = stringEnv('CMS_AVATAR_LANGUAGE_ID') ?? 'en';
+export const CMS_AVATAR_VOICE_ID = stringEnv('CMS_AVATAR_VOICE_ID');
+export const CMS_AVATAR_IMAGE_ID = stringEnv('CMS_AVATAR_IMAGE_ID');
+export const CMS_AVATAR_PROMPT = stringEnv('CMS_AVATAR_PROMPT') ?? 'test';
+export const CMS_AVATAR_READY_TIMEOUT_MS = intEnv('CMS_AVATAR_READY_TIMEOUT_MS', 60_000) ?? 60_000;
+export const CMS_AVATAR_READY_POLL_MS = intEnv('CMS_AVATAR_READY_POLL_MS', 2_000) ?? 2_000;
 
 export const RUN_ID = process.env.CHAT_RUN_ID ?? `${Date.now()}`;
 export const WORKERS = intEnv('CHAT_WORKERS');

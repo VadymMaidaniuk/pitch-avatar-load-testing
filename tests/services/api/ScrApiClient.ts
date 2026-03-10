@@ -1,24 +1,8 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 import { API_BASE_URL, SCR_SHORT_LINK } from '../../helpers/chatConfig';
+import { assertOk } from './apiClientUtils';
 
 export type LoginResult = { token: string; scrUserID: string };
-
-const readErrorSnippet = async (response: APIResponse): Promise<string> => {
-  try {
-    const text = await response.text();
-    if (!text) return '';
-    return text.slice(0, 500);
-  } catch {
-    return '';
-  }
-};
-
-const assertOk = async (response: APIResponse, context: string) => {
-  if (response.ok()) return;
-  const snippet = await readErrorSnippet(response);
-  const details = snippet ? ` - ${snippet}` : '';
-  throw new Error(`${context} failed: ${response.status()} ${response.statusText()}${details}`);
-};
 
 export class ScrApiClient {
   constructor(
