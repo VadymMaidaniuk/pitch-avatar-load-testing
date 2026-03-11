@@ -18,6 +18,7 @@
     "test:cms-data:stage": "cross-env DOTENV_CONFIG_PATH=.env.stage CHAT_ENV=stage CHAT_RUN_CMS_DATA=1 playwright test tests/api/chat-avatar-cms-data.spec.ts",
     "test:cms-data:prod": "cross-env DOTENV_CONFIG_PATH=.env.prod CHAT_ENV=prod CHAT_RUN_CMS_DATA=1 playwright test tests/api/chat-avatar-cms-data.spec.ts",
     "test:cms-data-video:stage": "cross-env DOTENV_CONFIG_PATH=.env.stage CHAT_ENV=stage CHAT_RUN_CMS_DATA_VIDEO=1 playwright test tests/api/chat-avatar-cms-data-video.spec.ts",
+    "test:cms-data-video-load:stage": "cross-env DOTENV_CONFIG_PATH=.env.stage CHAT_ENV=stage CHAT_RUN_CMS_DATA_VIDEO_LOAD=1 playwright test tests/api/chat-avatar-cms-data-video-load.spec.ts",
     "test:cms-mvp:stage": "cross-env DOTENV_CONFIG_PATH=.env.stage CHAT_ENV=stage CHAT_RUN_CMS_MVP=1 playwright test tests/api/chat-avatar-cms-mvp.spec.ts"
   },
   "keywords": [],
