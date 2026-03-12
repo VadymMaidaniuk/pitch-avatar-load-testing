@@ -54,9 +54,9 @@ export const CMS_CHAT_AVATAR_SCENARIOS: Record<
         },
         {
           type: 'text',
-          name: 'Duckport summary',
+          name: 'Nickname AQA',
           text:
-            'Duckport Canal diverts excess Mississippi River water to reduce flood risk for nearby communities.',
+            'The nickname "AQA" stands for "Automated Quality Assurance". It is commonly used in the software testing industry to refer to tools, processes, or teams that focus on automating the quality assurance activities to improve efficiency and effectiveness.',
         },
       ],
     },
