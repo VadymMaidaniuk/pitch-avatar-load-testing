@@ -14,6 +14,16 @@ const CMS_CHAT_AVATAR_SCENARIO_LIST = [
     knowledge: 'mixed_kb',
     presentation: 'pdf_s_10',
   }),
+  defineCmsChatAvatarScenario({
+    id: 'pptx_s_10_no_kb',
+    presentation: 'pptx_s_10',
+  }),
+  defineCmsChatAvatarScenario({
+    id: 'pptx_s_10_mixed_kb',
+    knowledge: 'mixed_kb',
+    presentation: 'pptx_s_10',
+  }),
+
 ] as const;
 
 export type CmsChatAvatarScenarioName = (typeof CMS_CHAT_AVATAR_SCENARIO_LIST)[number]['id'];

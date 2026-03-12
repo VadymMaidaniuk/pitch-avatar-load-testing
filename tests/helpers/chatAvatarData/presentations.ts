@@ -4,8 +4,9 @@ import type { CmsPresentationFileInput } from '../../services/avatar/CmsChatAvat
 const TEST_DATA_DIR = resolve(process.cwd(), 'test-data');
 
 const PRESENTATION_PDF_10 = resolve(TEST_DATA_DIR, 'Test_presentation_pdf_10slides.pdf');
+const PRESENTATION_PPTX_10 = resolve(TEST_DATA_DIR, 'Test_presentation_pptx_10slides.pptx');
 
-export const CMS_CHAT_AVATAR_PRESENTATION_NAMES = ['pdf_s_10'] as const;
+export const CMS_CHAT_AVATAR_PRESENTATION_NAMES = ['pdf_s_10', 'pptx_s_10'] as const;
 
 export type CmsChatAvatarPresentationName = (typeof CMS_CHAT_AVATAR_PRESENTATION_NAMES)[number];
 
@@ -28,6 +29,15 @@ export const CMS_CHAT_AVATAR_PRESENTATIONS: Record<
     },
     tags: ['@fmt_pdf', '@slides_10'],
     title: 'PDF small 10 slides',
+  },
+  pptx_s_10: {
+    id: 'pptx_s_10',
+    input: {
+      filePath: PRESENTATION_PPTX_10,
+      title: 'AQA PPTX 10 slides source',
+    },
+    tags: ['@fmt_pptx', '@slides_10'],
+    title: 'PPTX small 10 slides',
   },
 };
 
