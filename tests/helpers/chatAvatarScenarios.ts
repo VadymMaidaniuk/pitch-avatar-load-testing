@@ -3,52 +3,69 @@ import type { CreateCmsChatAvatarDataOptions } from '../services/avatar/CmsChatA
 
 const TEST_DATA_DIR = resolve(process.cwd(), 'test-data');
 
-const PRESENTATION_FILE = resolve(TEST_DATA_DIR, 'Test_presentation.pdf');
-const KNOWLEDGE_FILE = resolve(TEST_DATA_DIR, 'KB_RAG_Eclipse_Clause.pdf');
+const PRESENTATION_PDF_10 = resolve(TEST_DATA_DIR, 'Test_presentation_pdf_10slides.pdf');
+const KNOWLEDGE_PDF = resolve(TEST_DATA_DIR, 'KB_RAG_PDF.pdf');
 
-export type CmsChatAvatarScenarioName =
-  | 'presentation_only'
-  | 'presentation_with_mixed_knowledge';
+export const CMS_CHAT_AVATAR_SCENARIO_NAMES = ['pdf_s_10_no_kb', 'pdf_s_10_mixed_kb'] as const;
+
+export type CmsChatAvatarScenarioName = (typeof CMS_CHAT_AVATAR_SCENARIO_NAMES)[number];
+
+export type CmsChatAvatarScenarioDefinition = {
+  data: Omit<CreateCmsChatAvatarDataOptions, 'logger'>;
+  id: CmsChatAvatarScenarioName;
+  tags: string[];
+  title: string;
+};
 
 export const CMS_CHAT_AVATAR_SCENARIOS: Record<
   CmsChatAvatarScenarioName,
-  Omit<CreateCmsChatAvatarDataOptions, 'logger'>
+  CmsChatAvatarScenarioDefinition
 > = {
-  presentation_only: {
-    presentation: {
-      filePath: PRESENTATION_FILE,
-      title: 'AQA Presentation Only Source',
+  pdf_s_10_no_kb: {
+    data: {
+      presentation: {
+        filePath: PRESENTATION_PDF_10,
+        title: 'AQA PDF 10 slides source',
+      },
     },
+    id: 'pdf_s_10_no_kb',
+    tags: ['@fmt_pdf', '@slides_10', '@kb_none'],
+    title: 'PDF small 10 slides without knowledge',
   },
-  presentation_with_mixed_knowledge: {
-    presentation: {
-      filePath: PRESENTATION_FILE,
-      title: 'AQA Mixed Knowledge Source',
+  pdf_s_10_mixed_kb: {
+    data: {
+      presentation: {
+        filePath: PRESENTATION_PDF_10,
+        title: 'AQA PDF 10 slides mixed knowledge source',
+      },
+      knowledge: [
+        {
+          type: 'file',
+          filePath: KNOWLEDGE_PDF,
+          name: 'KB PDF',
+        },
+        {
+          type: 'link',
+          name: 'Duckport Canal wiki',
+          url: 'https://en.wikipedia.org/wiki/Duckport_Canal',
+        },
+        {
+          type: 'text',
+          name: 'Duckport summary',
+          text:
+            'Duckport Canal diverts excess Mississippi River water to reduce flood risk for nearby communities.',
+        },
+      ],
     },
-    knowledge: [
-      {
-        type: 'file',
-        filePath: KNOWLEDGE_FILE,
-        name: 'Eclipse Clause KB',
-      },
-      {
-        type: 'link',
-        name: 'Duckport Canal wiki',
-        url: 'https://en.wikipedia.org/wiki/Duckport_Canal',
-      },
-      {
-        type: 'text',
-        name: 'Duckport summary',
-        text:
-          'Duckport Canal is a flood-control channel built to divert excess Mississippi River water and protect nearby communities during high-water events.',
-      },
-    ],
+    id: 'pdf_s_10_mixed_kb',
+    tags: ['@fmt_pdf', '@slides_10', '@kb_mixed'],
+    title: 'PDF small 10 slides with mixed knowledge',
   },
 };
 
-export const getCmsChatAvatarScenario = (
+export const getCmsChatAvatarScenarioDefinition = (
   scenarioName: CmsChatAvatarScenarioName,
-): Omit<CreateCmsChatAvatarDataOptions, 'logger'> => {
+): CmsChatAvatarScenarioDefinition => {
   const scenario = CMS_CHAT_AVATAR_SCENARIOS[scenarioName];
   if (!scenario) {
     throw new Error(`Unknown CMS chat avatar scenario: ${scenarioName}`);
@@ -56,10 +73,28 @@ export const getCmsChatAvatarScenario = (
 
   return {
     ...scenario,
-    name: scenario.name ?? `aqa-${scenarioName}-${Date.now()}`,
-    presentation: {
-      ...scenario.presentation,
+    data: {
+      ...scenario.data,
+      knowledge: scenario.data.knowledge ? [...scenario.data.knowledge] : undefined,
+      name: scenario.data.name ?? `aqa-${scenarioName}-${Date.now()}`,
+      presentation: {
+        ...scenario.data.presentation,
+      },
     },
-    knowledge: scenario.knowledge ? [...scenario.knowledge] : undefined,
+    tags: [...scenario.tags],
+  };
+};
+
+export const getCmsChatAvatarScenario = (
+  scenarioName: CmsChatAvatarScenarioName,
+): Omit<CreateCmsChatAvatarDataOptions, 'logger'> => {
+  const scenario = getCmsChatAvatarScenarioDefinition(scenarioName);
+
+  return {
+    ...scenario.data,
+    knowledge: scenario.data.knowledge ? [...scenario.data.knowledge] : undefined,
+    presentation: {
+      ...scenario.data.presentation,
+    },
   };
 };

@@ -1,7 +1,8 @@
 import { expect, test } from '../fixtures/test';
 import {
+  CMS_CHAT_AVATAR_SCENARIO_NAMES,
   type CmsChatAvatarScenarioName,
-  getCmsChatAvatarScenario,
+  getCmsChatAvatarScenarioDefinition,
 } from '../helpers/chatAvatarScenarios';
 import {
   summarizeCmsAvatarTimings,
@@ -10,13 +11,15 @@ import {
 import { CMS_EMAIL, CMS_PASSWORD } from '../helpers/chatConfig';
 import { CmsChatAvatarDataService } from '../services/avatar/CmsChatAvatarDataService';
 
-const SCENARIOS: CmsChatAvatarScenarioName[] = [
-  'presentation_only',
-  'presentation_with_mixed_knowledge',
-];
+const SCENARIOS: CmsChatAvatarScenarioName[] = [...CMS_CHAT_AVATAR_SCENARIO_NAMES];
 
 for (const scenarioName of SCENARIOS) {
-  test(`[@api][@cms] CMS creates data-driven video avatar for ${scenarioName}`, async ({ request }, testInfo) => {
+  const scenario = getCmsChatAvatarScenarioDefinition(scenarioName);
+  const scenarioTagBlock = [`@api`, `@cms`, `@video`, `@sc_${scenario.id}`, ...scenario.tags]
+    .map((tag) => `[${tag}]`)
+    .join('');
+
+  test(`${scenarioTagBlock} CMS creates data-driven video avatar for ${scenario.title}`, async ({ request }, testInfo) => {
     test.setTimeout(10 * 60 * 1000);
     test.skip(
       process.env.CHAT_RUN_CMS_DATA_VIDEO !== '1',
@@ -30,12 +33,12 @@ for (const scenarioName of SCENARIOS) {
       const ts = Date.now();
       steps.push({ ts, message, context });
       const details = context ? ` ${JSON.stringify(context)}` : '';
-      console.log(`[CMS Avatar Video Data][${scenarioName}] ${message}${details}`);
+      console.log(`[CMS Avatar Video Data][${scenario.id}] ${message}${details}`);
     };
 
     const service = new CmsChatAvatarDataService(request);
     const result = await service.createAvatar({
-      ...getCmsChatAvatarScenario(scenarioName),
+      ...scenario.data,
       avatarMode: 'video',
       logger,
     });
@@ -58,8 +61,8 @@ for (const scenarioName of SCENARIOS) {
       totalCreationMs: timings.totalCreationMs,
       totalCreationSec: Number((timings.totalCreationMs / 1000).toFixed(1)),
     };
-    console.log(`[CMS Avatar Video Data][${scenarioName}] Presentation timing ${JSON.stringify(presentationTimingLog)}`);
-    console.log(`[CMS Avatar Video Data][${scenarioName}] Creation timing ${JSON.stringify(creationTimingLog)}`);
+    console.log(`[CMS Avatar Video Data][${scenario.id}] Presentation timing ${JSON.stringify(presentationTimingLog)}`);
+    console.log(`[CMS Avatar Video Data][${scenario.id}] Creation timing ${JSON.stringify(creationTimingLog)}`);
 
     expect(result.assistantId).toBeTruthy();
     expect(result.presentationId).toBeTruthy();
@@ -68,7 +71,7 @@ for (const scenarioName of SCENARIOS) {
     expect(result.shortLink).toBeTruthy();
     expect(result.url).toContain(result.shortLink);
 
-    await testInfo.attach(`cms-chat-avatar-data-video-${scenarioName}`, {
+    await testInfo.attach(`cms-chat-avatar-data-video-${scenario.id}`, {
       contentType: 'application/json',
       body: Buffer.from(
         JSON.stringify(

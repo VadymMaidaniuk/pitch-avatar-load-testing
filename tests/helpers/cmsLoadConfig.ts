@@ -1,4 +1,7 @@
-import type { CmsChatAvatarScenarioName } from './chatAvatarScenarios';
+import {
+  CMS_CHAT_AVATAR_SCENARIO_NAMES,
+  type CmsChatAvatarScenarioName,
+} from './chatAvatarScenarios';
 
 const intEnv = (name: string, fallback?: number): number | undefined => {
   const raw = process.env[name];
@@ -18,7 +21,7 @@ export type CmsLoadUser = {
   password: string;
 };
 
-const DEFAULT_SCENARIO: CmsChatAvatarScenarioName = 'presentation_only';
+const DEFAULT_SCENARIO: CmsChatAvatarScenarioName = 'pdf_s_10_no_kb';
 const DEFAULT_PAD = 2;
 const DEFAULT_START_INDEX = 1;
 
@@ -33,10 +36,7 @@ export const CMS_LOAD_USER_PAD = intEnv('CMS_LOAD_USER_PAD', DEFAULT_PAD) ?? DEF
 export const CMS_LOAD_USER_START_INDEX =
   intEnv('CMS_LOAD_USER_START_INDEX', DEFAULT_START_INDEX) ?? DEFAULT_START_INDEX;
 
-const validScenarios: CmsChatAvatarScenarioName[] = [
-  'presentation_only',
-  'presentation_with_mixed_knowledge',
-];
+const validScenarios: CmsChatAvatarScenarioName[] = [...CMS_CHAT_AVATAR_SCENARIO_NAMES];
 
 export const assertCmsLoadConfig = (): void => {
   if (!validScenarios.includes(CMS_LOAD_SCENARIO)) {
