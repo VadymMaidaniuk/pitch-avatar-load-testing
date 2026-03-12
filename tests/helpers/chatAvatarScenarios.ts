@@ -6,7 +6,10 @@ const TEST_DATA_DIR = resolve(process.cwd(), 'test-data');
 const PRESENTATION_PDF_10 = resolve(TEST_DATA_DIR, 'Test_presentation_pdf_10slides.pdf');
 const KNOWLEDGE_PDF = resolve(TEST_DATA_DIR, 'KB_RAG_PDF.pdf');
 
-export const CMS_CHAT_AVATAR_SCENARIO_NAMES = ['pdf_s_10_no_kb', 'pdf_s_10_mixed_kb'] as const;
+export const CMS_CHAT_AVATAR_SCENARIO_NAMES = [
+  'pdf_s_10_no_kb',
+  'pdf_s_10_mixed_kb',
+] as const;
 
 export type CmsChatAvatarScenarioName = (typeof CMS_CHAT_AVATAR_SCENARIO_NAMES)[number];
 
