@@ -1,70 +1,30 @@
-import { resolve } from 'node:path';
 import type { CreateCmsChatAvatarDataOptions } from '../services/avatar/CmsChatAvatarDataService';
+import {
+  defineCmsChatAvatarScenario,
+  type CmsChatAvatarScenarioDefinition,
+} from './chatAvatarData/scenarioBuilder';
 
-const TEST_DATA_DIR = resolve(process.cwd(), 'test-data');
-
-const PRESENTATION_PDF_10 = resolve(TEST_DATA_DIR, 'Test_presentation_pdf_10slides.pdf');
-const KNOWLEDGE_PDF = resolve(TEST_DATA_DIR, 'KB_RAG_PDF.pdf');
-
-export const CMS_CHAT_AVATAR_SCENARIO_NAMES = [
-  'pdf_s_10_no_kb',
-  'pdf_s_10_mixed_kb',
+const CMS_CHAT_AVATAR_SCENARIO_LIST = [
+  defineCmsChatAvatarScenario({
+    id: 'pdf_s_10_no_kb',
+    presentation: 'pdf_s_10',
+  }),
+  defineCmsChatAvatarScenario({
+    id: 'pdf_s_10_mixed_kb',
+    knowledge: 'mixed_kb',
+    presentation: 'pdf_s_10',
+  }),
 ] as const;
 
-export type CmsChatAvatarScenarioName = (typeof CMS_CHAT_AVATAR_SCENARIO_NAMES)[number];
+export type CmsChatAvatarScenarioName = (typeof CMS_CHAT_AVATAR_SCENARIO_LIST)[number]['id'];
 
-export type CmsChatAvatarScenarioDefinition = {
-  data: Omit<CreateCmsChatAvatarDataOptions, 'logger'>;
-  id: CmsChatAvatarScenarioName;
-  tags: string[];
-  title: string;
-};
+export const CMS_CHAT_AVATAR_SCENARIO_NAMES = CMS_CHAT_AVATAR_SCENARIO_LIST.map(
+  (scenario) => scenario.id,
+) as CmsChatAvatarScenarioName[];
 
-export const CMS_CHAT_AVATAR_SCENARIOS: Record<
-  CmsChatAvatarScenarioName,
-  CmsChatAvatarScenarioDefinition
-> = {
-  pdf_s_10_no_kb: {
-    data: {
-      presentation: {
-        filePath: PRESENTATION_PDF_10,
-        title: 'AQA PDF 10 slides source',
-      },
-    },
-    id: 'pdf_s_10_no_kb',
-    tags: ['@fmt_pdf', '@slides_10', '@kb_none'],
-    title: 'PDF small 10 slides without knowledge',
-  },
-  pdf_s_10_mixed_kb: {
-    data: {
-      presentation: {
-        filePath: PRESENTATION_PDF_10,
-        title: 'AQA PDF 10 slides mixed knowledge source',
-      },
-      knowledge: [
-        {
-          type: 'file',
-          filePath: KNOWLEDGE_PDF,
-          name: 'KB PDF',
-        },
-        {
-          type: 'link',
-          name: 'Duckport Canal wiki',
-          url: 'https://en.wikipedia.org/wiki/Duckport_Canal',
-        },
-        {
-          type: 'text',
-          name: 'Nickname AQA',
-          text:
-            'The nickname "AQA" stands for "Automated Quality Assurance". It is commonly used in the software testing industry to refer to tools, processes, or teams that focus on automating the quality assurance activities to improve efficiency and effectiveness.',
-        },
-      ],
-    },
-    id: 'pdf_s_10_mixed_kb',
-    tags: ['@fmt_pdf', '@slides_10', '@kb_mixed'],
-    title: 'PDF small 10 slides with mixed knowledge',
-  },
-};
+export const CMS_CHAT_AVATAR_SCENARIOS = Object.fromEntries(
+  CMS_CHAT_AVATAR_SCENARIO_LIST.map((scenario) => [scenario.id, scenario]),
+) as Record<CmsChatAvatarScenarioName, CmsChatAvatarScenarioDefinition<CmsChatAvatarScenarioName>>;
 
 export const getCmsChatAvatarScenarioDefinition = (
   scenarioName: CmsChatAvatarScenarioName,
