@@ -1,7 +1,7 @@
 import type { CreateCmsChatAvatarDataOptions } from '../../services/avatar/CmsChatAvatarDataService';
 import {
-  getCmsChatAvatarKnowledgeDefinition,
-  type CmsChatAvatarKnowledgeName,
+  getCmsChatAvatarKnowledgeBundle,
+  type CmsChatAvatarKnowledgeSelection,
 } from './knowledge';
 import {
   getCmsChatAvatarPresentationDefinition,
@@ -20,7 +20,7 @@ export type CmsChatAvatarScenarioDefinition<TId extends string = string> = {
 export type CmsChatAvatarScenarioBuildInput<TId extends string> = {
   data?: Partial<Omit<CmsChatAvatarScenarioData, 'knowledge' | 'presentation'>>;
   id: TId;
-  knowledge?: CmsChatAvatarKnowledgeName;
+  knowledge?: CmsChatAvatarKnowledgeSelection;
   presentation: CmsChatAvatarPresentationName;
   tags?: string[];
   title?: string;
@@ -30,7 +30,7 @@ export const defineCmsChatAvatarScenario = <TId extends string>(
   input: CmsChatAvatarScenarioBuildInput<TId>,
 ): CmsChatAvatarScenarioDefinition<TId> => {
   const presentation = getCmsChatAvatarPresentationDefinition(input.presentation);
-  const knowledge = getCmsChatAvatarKnowledgeDefinition(input.knowledge ?? 'none');
+  const knowledge = getCmsChatAvatarKnowledgeBundle(input.knowledge);
 
   return {
     data: {

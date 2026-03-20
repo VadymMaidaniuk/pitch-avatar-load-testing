@@ -8,24 +8,47 @@ import {
   summarizeCmsAvatarTimings,
   type CmsAvatarLoggedStep,
 } from '../helpers/cmsAvatarTiming';
-import { CMS_EMAIL, CMS_PASSWORD } from '../helpers/chatConfig';
+import {
+  getCmsTestUserForSelection,
+  hasCmsTestUserConfig,
+} from '../helpers/cmsTestUsers';
 import { CmsChatAvatarDataService } from '../services/avatar/CmsChatAvatarDataService';
 
 const SCENARIOS: CmsChatAvatarScenarioName[] = [...CMS_CHAT_AVATAR_SCENARIO_NAMES];
-
-for (const scenarioName of SCENARIOS) {
+const SCENARIO_CASES = SCENARIOS.map((scenarioName) => {
   const scenario = getCmsChatAvatarScenarioDefinition(scenarioName);
   const scenarioTagBlock = [`@api`, `@cms`, `@video`, `@sc_${scenario.id}`, ...scenario.tags]
     .map((tag) => `[${tag}]`)
     .join('');
 
-  test(`${scenarioTagBlock} CMS creates data-driven video avatar for ${scenario.title}`, async ({ request }, testInfo) => {
+  return {
+    scenario,
+    testTitle: `${scenarioTagBlock} CMS creates data-driven video avatar for ${scenario.title}`,
+  };
+});
+
+for (const scenarioCase of SCENARIO_CASES) {
+  const { scenario, testTitle } = scenarioCase;
+  test(testTitle, async ({ request }, testInfo) => {
     test.setTimeout(10 * 60 * 1000);
     test.skip(
       process.env.CHAT_RUN_CMS_DATA_VIDEO !== '1',
       'Set CHAT_RUN_CMS_DATA_VIDEO=1 to run CMS video data scenarios.',
     );
-    test.skip(!CMS_EMAIL || !CMS_PASSWORD, 'Set CMS_EMAIL and CMS_PASSWORD to run CMS avatar creation.');
+    test.skip(
+      !hasCmsTestUserConfig(),
+      'Set CMS_LOAD_USER_PREFIX, CMS_LOAD_USER_DOMAIN, and CMS_LOAD_USER_PASSWORD to run CMS avatar creation.',
+    );
+
+    const cmsUser = getCmsTestUserForSelection({
+      config: testInfo.config,
+      currentTitle: testTitle,
+      filePath: testInfo.file,
+      grep: testInfo.project.grep,
+      grepInvert: testInfo.project.grepInvert,
+      projectName: testInfo.project.name,
+      titles: SCENARIO_CASES.map((item) => item.testTitle),
+    });
 
     const startedAt = Date.now();
     const steps: CmsAvatarLoggedStep[] = [];
@@ -35,12 +58,20 @@ for (const scenarioName of SCENARIOS) {
       const details = context ? ` ${JSON.stringify(context)}` : '';
       console.log(`[CMS Avatar Video Data][${scenario.id}] ${message}${details}`);
     };
+    await logger('Test user assigned', {
+      cmsUserEmail: cmsUser.email,
+      cmsUserIndex: cmsUser.index,
+      scenarioName: scenario.id,
+      scenarioTitle: scenario.title,
+    });
 
     const service = new CmsChatAvatarDataService(request);
     const result = await service.createAvatar({
       ...scenario.data,
       avatarMode: 'video',
+      email: cmsUser.email,
       logger,
+      password: cmsUser.password,
     });
     const finishedAt = Date.now();
     const timings = summarizeCmsAvatarTimings(steps, startedAt, finishedAt);
@@ -76,6 +107,8 @@ for (const scenarioName of SCENARIOS) {
       body: Buffer.from(
         JSON.stringify(
           {
+            cmsUserEmail: cmsUser.email,
+            cmsUserIndex: cmsUser.index,
             result,
             steps,
             timings: {

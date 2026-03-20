@@ -2,6 +2,11 @@ import {
   CMS_CHAT_AVATAR_SCENARIO_NAMES,
   type CmsChatAvatarScenarioName,
 } from './chatAvatarScenarios';
+import {
+  assertCmsTestUserConfig,
+  buildCmsTestUsers,
+  type CmsTestUser,
+} from './cmsTestUsers';
 
 const intEnv = (name: string, fallback?: number): number | undefined => {
   const raw = process.env[name];
@@ -15,27 +20,14 @@ const stringEnv = (name: string): string | undefined => {
   return raw ? raw : undefined;
 };
 
-export type CmsLoadUser = {
-  email: string;
-  index: number;
-  password: string;
-};
+export type CmsLoadUser = CmsTestUser;
 
 const DEFAULT_SCENARIO: CmsChatAvatarScenarioName = 'pdf_s_10_no_kb';
-const DEFAULT_PAD = 2;
-const DEFAULT_START_INDEX = 1;
 
 export const CMS_LOAD_SCENARIO =
   (stringEnv('CMS_LOAD_SCENARIO') as CmsChatAvatarScenarioName | undefined) ?? DEFAULT_SCENARIO;
 export const CMS_LOAD_USERS = intEnv('CMS_LOAD_USERS', 1) ?? 1;
 export const CMS_LOAD_WORKERS = intEnv('CMS_LOAD_WORKERS', CMS_LOAD_USERS) ?? CMS_LOAD_USERS;
-export const CMS_LOAD_USER_PREFIX = stringEnv('CMS_LOAD_USER_PREFIX');
-export const CMS_LOAD_USER_DOMAIN = stringEnv('CMS_LOAD_USER_DOMAIN');
-export const CMS_LOAD_USER_PASSWORD = stringEnv('CMS_LOAD_USER_PASSWORD');
-export const CMS_LOAD_USER_PAD = intEnv('CMS_LOAD_USER_PAD', DEFAULT_PAD) ?? DEFAULT_PAD;
-export const CMS_LOAD_USER_START_INDEX =
-  intEnv('CMS_LOAD_USER_START_INDEX', DEFAULT_START_INDEX) ?? DEFAULT_START_INDEX;
-
 const validScenarios: CmsChatAvatarScenarioName[] = [...CMS_CHAT_AVATAR_SCENARIO_NAMES];
 
 export const assertCmsLoadConfig = (): void => {
@@ -45,11 +37,7 @@ export const assertCmsLoadConfig = (): void => {
     );
   }
 
-  if (!CMS_LOAD_USER_PREFIX || !CMS_LOAD_USER_DOMAIN || !CMS_LOAD_USER_PASSWORD) {
-    throw new Error(
-      'CMS load credentials are required. Set CMS_LOAD_USER_PREFIX, CMS_LOAD_USER_DOMAIN, and CMS_LOAD_USER_PASSWORD.',
-    );
-  }
+  assertCmsTestUserConfig();
 
   if (CMS_LOAD_WORKERS > CMS_LOAD_USERS) {
     throw new Error(
@@ -60,15 +48,5 @@ export const assertCmsLoadConfig = (): void => {
 
 export const buildCmsLoadUsers = (): CmsLoadUser[] => {
   assertCmsLoadConfig();
-
-  return Array.from({ length: CMS_LOAD_USERS }, (_, offset) => {
-    const index = CMS_LOAD_USER_START_INDEX + offset;
-    const suffix = String(index).padStart(CMS_LOAD_USER_PAD, '0');
-
-    return {
-      email: `${CMS_LOAD_USER_PREFIX}${suffix}@${CMS_LOAD_USER_DOMAIN}`,
-      index,
-      password: CMS_LOAD_USER_PASSWORD!,
-    };
-  });
+  return buildCmsTestUsers(CMS_LOAD_USERS);
 };

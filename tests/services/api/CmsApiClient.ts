@@ -1,11 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import type { APIRequestContext } from '@playwright/test';
-import {
-  CMS_API_BASE_URL,
-  CMS_EMAIL,
-  CMS_PASSWORD,
-} from '../../helpers/chatConfig';
+import { CMS_API_BASE_URL } from '../../helpers/chatConfig';
 import { assertOk } from './apiClientUtils';
 
 type JwtPayload = { sub?: string };
@@ -201,10 +197,10 @@ export class CmsApiClient {
     private readonly baseUrl: string = CMS_API_BASE_URL,
   ) {}
 
-  async login(email: string = CMS_EMAIL ?? '', password: string = CMS_PASSWORD ?? ''): Promise<CmsLoginResult> {
+  async login(email?: string, password?: string): Promise<CmsLoginResult> {
     if (!email || !password) {
       throw new Error(
-        'CMS credentials are required. Set CMS_EMAIL and CMS_PASSWORD or pass them explicitly.',
+        'CMS credentials are required. Pass explicit email and password to the CMS service call.',
       );
     }
 
