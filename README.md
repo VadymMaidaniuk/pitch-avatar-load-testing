@@ -28,6 +28,7 @@ Non-secret defaults such as timeouts, polling, audio tuning, and CMS runtime def
 
 Examples:
 - `npm run test:stage`
+- `npm run test:api-ws:stage`
 - `npm run test:cms-data:stage`
 - `$env:CHAT_ENV="dev"; npm test`
 
@@ -36,6 +37,7 @@ Examples:
 - Smoke suite: `npm run test:smoke`
 - Regression suite: `npm run test:regression`
 - API-only tests: `npm run test:api`
+- API + WS flow on stage: `npm run test:api-ws:stage`
 - E2E tests: `npm run test:e2e`
 - UI reply-time load test: `npm run test:ui`
 - UI + WS validation: `npm run test:ui-ws`
