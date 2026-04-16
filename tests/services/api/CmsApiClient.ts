@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import type { APIRequestContext } from '@playwright/test';
 import { CMS_API_BASE_URL } from '../../helpers/chatConfig';
-import { assertOk } from './apiClientUtils';
+import { assertOk, readErrorSnippet } from './apiClientUtils';
 
 type JwtPayload = { sub?: string };
 
@@ -247,12 +247,27 @@ export class CmsApiClient {
   }
 
   async listAvatarImages(accessToken: string, pageSize = 20): Promise<CmsAvatarImageResource[]> {
-    const response = await this.request.get(
-      `${this.baseUrl}/avatar-images?page[number]=1&page[size]=${pageSize}&filter[isAvatarable]=1&filter[isStreamable]=1`,
-      {
-        headers: this.buildJsonApiHeaders(accessToken),
-      },
-    );
+    const headers = this.buildJsonApiHeaders(accessToken);
+    const buildUrl = (includeAvatarableFilter: boolean) => {
+      const filters = [
+        ...(includeAvatarableFilter ? ['filter[isAvatarable]=1'] : []),
+        'filter[isStreamable]=1',
+      ];
+      return `${this.baseUrl}/avatar-images?page[number]=1&page[size]=${pageSize}&${filters.join('&')}`;
+    };
+
+    let response = await this.request.get(buildUrl(true), { headers });
+    if (!response.ok() && response.status() === 400) {
+      const snippet = await readErrorSnippet(response);
+      if (snippet.includes('isAvatarable') && snippet.includes('not allowed')) {
+        response = await this.request.get(buildUrl(false), { headers });
+      } else {
+        const details = snippet ? ` - ${snippet}` : '';
+        throw new Error(
+          `GET /avatar-images failed: ${response.status()} ${response.statusText()}${details}`,
+        );
+      }
+    }
 
     await assertOk(response, 'GET /avatar-images');
     const payload = (await response.json()) as JsonApiCollection<CmsAvatarImageResource>;

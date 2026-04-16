@@ -150,7 +150,7 @@ export abstract class CmsChatAvatarBaseService {
     }
 
     await this.log(logger, 'Resolving first clip-capable video avatar image');
-    const images = await this.cmsClient.listAvatarImages(accessToken);
+    const images = await this.cmsClient.listAvatarImages(accessToken, 100);
     const preferred = images.find((image) => hasClipMetadata(image));
 
     if (!preferred) {
