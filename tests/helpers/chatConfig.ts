@@ -35,8 +35,8 @@ const ENV_DEFAULTS: Record<
     wsBase: 'wss://haproxy-dev.pitchavatar.com',
   },
   stage: {
-    chatUrl: 'https://slides-staging.pitchavatar.com/hxkqw',
-    shortLink: 'hxkqw',
+    chatUrl: 'https://slides-staging.pitchavatar.com/a42ee',
+    shortLink: 'a42ee',
     apiBase: 'https://api-staging.pitchavatar.com',
     wsBase: 'wss://haproxy-stage.pitchavatar.com',
   },
