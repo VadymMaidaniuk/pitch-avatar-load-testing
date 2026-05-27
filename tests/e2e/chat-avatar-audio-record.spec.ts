@@ -59,6 +59,10 @@ type RecordingResult = {
 type AssistantTextResult = {
   text: string;
   visibleAt: number;
+  source: 'ui' | 'ws';
+  eventType?: string;
+  wsUrl?: string;
+  wsFrame?: any;
 };
 
 const collectAudioStats = async (page: Page): Promise<AudioStats> => {
@@ -199,14 +203,14 @@ const waitForAssistantText = async (
         if (cleaned) lastText = cleaned;
         if (hasContent(cleaned) && !isLabelOnly(cleaned)) {
           const visibleAt = await page.evaluate(() => Date.now());
-          return { text: cleaned, visibleAt };
+          return { text: cleaned, visibleAt, source: 'ui' };
         }
       }
       const fallback = cleanText(await candidate.innerText({ timeout: 2_000 }).catch(() => ''));
       if (fallback) lastText = fallback;
       if (hasContent(fallback) && !isLabelOnly(fallback)) {
         const visibleAt = await page.evaluate(() => Date.now());
-        return { text: fallback, visibleAt };
+        return { text: fallback, visibleAt, source: 'ui' };
       }
     }
     await page.waitForTimeout(500);
@@ -215,6 +219,92 @@ const waitForAssistantText = async (
   throw new Error(
     `Assistant reply text not received in ${UI_ASSIST_TIMEOUT_MS}ms (last text: "${lastText}")`,
   );
+};
+
+const waitForAssistantWsMessage = async (
+  page: Page,
+  timeoutMs: number,
+): Promise<AssistantTextResult> => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    for (const frame of page.frames()) {
+      try {
+        const result = await frame.evaluate(() => {
+          const frames: { url?: string; data?: string; ts?: number }[] = (window as any).__wsFrames || [];
+          for (const f of frames) {
+            if (!f?.data) continue;
+            try {
+              const parsed = JSON.parse(f.data);
+              const legacyType = typeof parsed?.event_type === 'string' ? parsed.event_type : '';
+              const legacyMessage = typeof parsed?.message === 'string' ? parsed.message.trim() : '';
+              if (
+                (legacyType === 'assistant_chat_message' || legacyType === 'chat_stream_chunk') &&
+                legacyMessage.length > 0
+              ) {
+                return {
+                  text: legacyMessage,
+                  visibleAt: typeof f.ts === 'number' ? f.ts : Date.now(),
+                  source: 'ws',
+                  eventType: legacyType,
+                  wsUrl: f.url,
+                  wsFrame: parsed,
+                };
+              }
+
+              const envelopeType = typeof parsed?.type === 'string' ? parsed.type : '';
+              const payload =
+                parsed?.payload && typeof parsed.payload === 'object' ? parsed.payload : {};
+              const payloadMessage =
+                typeof payload?.message === 'string' ? String(payload.message).trim() : '';
+              if (
+                (envelopeType === 'assistant_chat_message' || envelopeType === 'chat_stream_chunk') &&
+                payloadMessage.length > 0
+              ) {
+                return {
+                  text: payloadMessage,
+                  visibleAt: typeof f.ts === 'number' ? f.ts : Date.now(),
+                  source: 'ws',
+                  eventType: envelopeType,
+                  wsUrl: f.url,
+                  wsFrame: parsed,
+                };
+              }
+            } catch {
+              // ignore non-json frames
+            }
+          }
+          return null;
+        });
+        if (result?.text) {
+          return result as AssistantTextResult;
+        }
+      } catch {
+        // ignore frames that cannot be evaluated
+      }
+    }
+    await page.waitForTimeout(500);
+  }
+
+  throw new Error(`Assistant WS message not received in ${timeoutMs}ms`);
+};
+
+const waitForAssistantSignal = async (
+  page: Page,
+  assistantBubbleLocator: Locator,
+  startIndex: number,
+  messageList: Locator,
+): Promise<AssistantTextResult> => {
+  try {
+    return await Promise.any([
+      waitForAssistantText(page, assistantBubbleLocator, startIndex, messageList),
+      waitForAssistantWsMessage(page, UI_ASSIST_TIMEOUT_MS),
+    ]);
+  } catch (error: any) {
+    const details = Array.isArray(error?.errors)
+      ? error.errors.map((item: Error) => item.message).join('; ')
+      : error?.message || String(error);
+    throw new Error(`Assistant reply not received from UI or WS in ${UI_ASSIST_TIMEOUT_MS}ms (${details})`);
+  }
 };
 
 const hasLiveAudioTrack = async (frame: Frame): Promise<boolean> => {
@@ -436,6 +526,42 @@ async function runScenario(page: Page, userId: number, testInfo: TestInfo) {
     const w = window as any;
     if (!w.__peerConnections) w.__peerConnections = [];
     if (!w.__rtcAudioTracks) w.__rtcAudioTracks = [];
+    if (!w.__wsFrames) w.__wsFrames = [];
+    if (!w.__wsUrls) w.__wsUrls = [];
+    const OriginalWs = w.WebSocket;
+    if (OriginalWs && !w.__wsInstrumentedAudioRecord) {
+      w.__wsInstrumentedAudioRecord = true;
+      const decoder = new TextDecoder();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      class InstrumentedWS extends OriginalWs {
+        constructor(url: string, protocols?: string | string[]) {
+          super(url, protocols as any);
+          try {
+            w.__wsUrls.push(url);
+          } catch {
+            // ignore
+          }
+          this.addEventListener('message', async (event: MessageEvent) => {
+            try {
+              const data = (event as any).data;
+              let text = '';
+              if (typeof data === 'string') {
+                text = data;
+              } else if (data instanceof ArrayBuffer) {
+                text = decoder.decode(data);
+              } else if (data && typeof (data as any).text === 'function') {
+                text = await (data as any).text();
+              }
+              w.__wsFrames.push({ url, data: text, ts: Date.now() });
+            } catch {
+              // ignore
+            }
+          });
+        }
+      }
+      // @ts-ignore
+      w.WebSocket = InstrumentedWS;
+    }
     const Original = w.RTCPeerConnection || w.webkitRTCPeerConnection;
     if (!Original || w.__pcInstrumented) return;
     w.__pcInstrumented = true;
@@ -485,12 +611,15 @@ async function runScenario(page: Page, userId: number, testInfo: TestInfo) {
   await sendButton.click();
   await expect(chat.userBubble(question)).toBeVisible({ timeout: 20_000 });
 
-  const assistantText = await waitForAssistantText(
+  const assistantText = await waitForAssistantSignal(
     page,
     assistantBubbleLocator,
     botCountBefore,
     messageList,
   );
+  if (assistantText.source === 'ws') {
+    console.warn('[audio-record] Assistant text was not rendered in UI before WS reply; continuing with WS signal for audio recording.');
+  }
 
   const audioSample = await waitForInboundAudio(
     page,

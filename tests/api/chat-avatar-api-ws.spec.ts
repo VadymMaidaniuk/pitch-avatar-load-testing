@@ -5,6 +5,9 @@ import { buildQuestion } from '../helpers/chatQuestions';
 import { WS_ASSIST_TIMEOUT_MS } from '../helpers/chatRuntimeConfig';
 import { ScrApiClient } from '../services/api/ScrApiClient';
 
+const buildTraceId = () =>
+  `Root=1-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 14)}`;
+
 const connectWs = (wsUrl: string) =>
   new Promise<WebSocket>((resolve, reject) => {
     const socket = new WebSocket(wsUrl);
@@ -24,18 +27,33 @@ const connectWs = (wsUrl: string) =>
     socket.on('error', onError);
   });
 
+const sendWsEnvelope = (
+  socket: WebSocket,
+  type: string,
+  payload: Record<string, unknown>,
+) => {
+  socket.send(
+    JSON.stringify({
+      version: '1.0',
+      type,
+      trace_id: buildTraceId(),
+      timestamp: new Date().toISOString(),
+      payload,
+    }),
+  );
+};
+
+const sendWsSetParameter = (
+  socket: WebSocket,
+  name: string,
+  type: string,
+  value: string | boolean | number,
+) => {
+  sendWsEnvelope(socket, 'set_parameter', { name, type, value });
+};
+
 const sendWsReportAction = (socket: WebSocket, action: string, data: Record<string, unknown> = {}) => {
-  const traceId = `Root=1-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
-  const payload = {
-    version: '1.0',
-    type: 'report_action',
-    trace_id: traceId,
-    payload: {
-      action,
-      data,
-    },
-  };
-  socket.send(JSON.stringify(payload));
+  sendWsEnvelope(socket, 'report_action', { action, data });
 };
 
 const extractAssistantFrameData = (
@@ -141,17 +159,37 @@ for (let userId = 1; userId <= UI_USERS; userId += 1) {
     let wsUrl = '';
     let question = '';
     let scrUserID = '';
-    const { token, scrUserID: currentScrUserID } = await client.login();
+    const {
+      token,
+      scrUserID: currentScrUserID,
+      screeningStepID,
+      languageID,
+    } = await client.login();
+    if (!screeningStepID) {
+      throw new Error('Login response missing first screening step ID');
+    }
     scrUserID = currentScrUserID;
     test.info().annotations.push({ type: 'scrUserID', description: scrUserID });
+
+    await client.initializeScreeningParameters(token, languageID);
 
     wsUrl = `${WS_BASE_URL}/ws?scrUserID=${encodeURIComponent(scrUserID)}`;
     socket = await connectWs(wsUrl);
 
     try {
       const waitForReply = waitForAssistantMessage(socket, WS_ASSIST_TIMEOUT_MS, frames);
+      sendWsSetParameter(socket, 'Voice Recognition Status', 'bool', false);
+      sendWsSetParameter(socket, 'Presentation Language', 'string', languageID);
+      sendWsSetParameter(socket, 'Listener Language', 'string', languageID);
+
       await client.reportAction(token, 'screen_user_started_screening');
       sendWsReportAction(socket, 'screen_user_started_screening');
+      sendWsReportAction(socket, 'screen_user_autoplay_off', {
+        screening_step_id: screeningStepID,
+      });
+      sendWsReportAction(socket, 'screen_user_changed_step', {
+        screening_step_id: screeningStepID,
+      });
 
       question = buildQuestion(userId);
       const reportResponse = await client.reportAction(token, 'screen_user_made_chat_message', {
@@ -171,6 +209,8 @@ for (let userId = 1; userId <= UI_USERS; userId += 1) {
         body: Buffer.from(
           JSON.stringify({
             scrUserID,
+            screeningStepID,
+            languageID,
             question,
             wsUrl,
             assistant: result.assistant,
@@ -187,6 +227,8 @@ for (let userId = 1; userId <= UI_USERS; userId += 1) {
             JSON.stringify({
               userId,
               scrUserID,
+              screeningStepID,
+              languageID,
               wsUrl,
               question,
               frameCount: frames.length,
