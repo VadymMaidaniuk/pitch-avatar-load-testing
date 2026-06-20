@@ -3,7 +3,9 @@ import type { Page } from '@playwright/test';
 import { UI_USERS } from '../helpers/chatConfig';
 import { buildQuestion } from '../helpers/chatQuestions';
 import {
+  AUDIO_ENERGY_DELTA,
   AUDIO_GROWTH_WAIT_MS,
+  AUDIO_LEVEL_THRESHOLD,
   AUDIO_MIN_BYTES,
   AUDIO_MIN_PACKETS,
   AUDIO_PLAYBACK_WAIT_MS,
@@ -34,6 +36,9 @@ type AudioStats = {
   videoPackets: number;
   audioReceivers: number;
   videoReceivers: number;
+  maxAudioLevel: number;
+  totalAudioEnergy: number;
+  totalAudioSamples: number;
 };
 
 type WsAssistantMessage = {
@@ -107,6 +112,9 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
     videoPackets: 0,
     audioReceivers: 0,
     videoReceivers: 0,
+    maxAudioLevel: 0,
+    totalAudioEnergy: 0,
+    totalAudioSamples: 0,
   };
 
   for (const frame of frames) {
@@ -126,6 +134,9 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
         let videoPackets = 0;
         let audioReportCount = 0;
         let videoReportCount = 0;
+        let maxAudioLevel = 0;
+        let totalAudioEnergy = 0;
+        let totalAudioSamples = 0;
         let connectedPcs = 0;
         let iceConnectedPcs = 0;
         let audioReceivers = 0;
@@ -161,6 +172,15 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
             ) {
               totalBytes += report.bytesReceived || 0;
               totalPackets += report.packetsReceived || 0;
+              if (typeof report.audioLevel === 'number') {
+                maxAudioLevel = Math.max(maxAudioLevel, report.audioLevel);
+              }
+              if (typeof report.totalAudioEnergy === 'number') {
+                totalAudioEnergy += report.totalAudioEnergy;
+              }
+              if (typeof report.totalSamplesReceived === 'number') {
+                totalAudioSamples += report.totalSamplesReceived;
+              }
               audioReportCount += 1;
               return;
             }
@@ -186,6 +206,9 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
           videoPackets,
           audioReceivers,
           videoReceivers,
+          maxAudioLevel,
+          totalAudioEnergy,
+          totalAudioSamples,
         };
       });
 
@@ -201,6 +224,9 @@ const collectAudioStats = async (page: Page): Promise<AudioStats> => {
       aggregate.videoPackets += stats.videoPackets || 0;
       aggregate.audioReceivers += stats.audioReceivers || 0;
       aggregate.videoReceivers += stats.videoReceivers || 0;
+      aggregate.maxAudioLevel = Math.max(aggregate.maxAudioLevel, stats.maxAudioLevel || 0);
+      aggregate.totalAudioEnergy += stats.totalAudioEnergy || 0;
+      aggregate.totalAudioSamples += stats.totalAudioSamples || 0;
     } catch {
       // ignore frames that cannot be evaluated
     }
@@ -367,6 +393,9 @@ const waitForInboundAudio = async (
     videoPackets: 0,
     audioReceivers: 0,
     videoReceivers: 0,
+    maxAudioLevel: 0,
+    totalAudioEnergy: 0,
+    totalAudioSamples: 0,
   };
 
   while (Date.now() < deadline) {
@@ -603,7 +632,14 @@ async function runScenario(page: Page, userId: number) {
   const audioStatsAfter = await collectAudioStats(page);
   const deltaBytes = audioStatsAfter.totalBytes - audioStats.totalBytes;
   const deltaPackets = audioStatsAfter.totalPackets - audioStats.totalPackets;
+  const deltaEnergy = audioStatsAfter.totalAudioEnergy - audioStats.totalAudioEnergy;
+  const deltaSamples = audioStatsAfter.totalAudioSamples - audioStats.totalAudioSamples;
   expect(deltaBytes + deltaPackets).toBeGreaterThan(0);
+  expect(
+    audioStatsAfter.maxAudioLevel >= AUDIO_LEVEL_THRESHOLD ||
+      (deltaEnergy >= AUDIO_ENERGY_DELTA && deltaSamples > 0),
+    `Inbound audio had RTP growth but no audible energy (maxAudioLevel=${audioStatsAfter.maxAudioLevel}, deltaEnergy=${deltaEnergy}, deltaSamples=${deltaSamples}, deltaBytes=${deltaBytes}, deltaPackets=${deltaPackets})`,
+  ).toBeTruthy();
 
   const playbackInfo = await waitForPlaybackStart(page, AUDIO_PLAYBACK_WAIT_MS);
   const playbackStartDelayMs =

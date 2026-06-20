@@ -706,6 +706,10 @@ async function runScenario(page: Page, userId: number) {
       AUDIO_ENERGY_DELTA,
     ),
   ]);
+  expect(
+    audioEnergy.hit,
+    `No audible audio energy after assistant text (reason=${audioEnergy.reason}, maxAudioLevel=${audioEnergy.lastSample.stats.maxAudioLevel}, deltaEnergy=${audioEnergy.deltaEnergy}, deltaSamples=${audioEnergy.deltaSamples})`,
+  ).not.toBeNull();
 
   const textToAudioStartMs = audioGrowth.firstGrowth.ts - assistantText.visibleAt;
   const textToAudioEnergyMs = audioEnergy.hit

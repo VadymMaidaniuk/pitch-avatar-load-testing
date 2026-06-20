@@ -643,6 +643,10 @@ async function runScenario(page: Page, userId: number, testInfo: TestInfo) {
     AUDIO_ENERGY_DELTA,
   );
   expect(recording.size).toBeGreaterThan(0);
+  expect(
+    recording.hadSpeech,
+    `Recorded remote audio track stayed silent (lastAudioLevel=${recording.lastAudioLevel}, lastTotalAudioEnergy=${recording.lastTotalAudioEnergy})`,
+  ).toBeTruthy();
 
   const extension = recording.mimeType.includes('ogg') ? 'ogg' : 'webm';
   const outputPath = testInfo.outputPath(`audio-${userId}-${Date.now()}.${extension}`);
