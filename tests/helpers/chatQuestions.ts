@@ -1,4 +1,4 @@
-const QUESTION_POOL: string[] = [
+export const QUESTION_POOL: readonly string[] = [
   'Explain the trolley problem in simple terms.',
   'Give a creative use case for paper clips.',
   'Describe how a blockchain works without buzzwords.',

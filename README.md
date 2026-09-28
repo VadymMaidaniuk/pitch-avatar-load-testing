@@ -57,6 +57,22 @@ Examples:
 - Artifacts and attachments: `test-results/`
 - Reply timing log: `test-results/chat-reply-times-<runId>.log` (UI load test)
 
+## WebSocket text-response load testing
+
+A separate browser-free suite measures question-to-first-text and question-to-complete-text
+latency for one 25-question dialogue and 10/20/50 independent parallel sessions of one avatar.
+It requires a fresh `WS_LOAD_CHAT_URL` and has explicit dev/stage/prod commands, with no test retries.
+
+- Local verification only: `npm run test:ws-load:local`
+- Role/cache/topic preflight: `npm run test:ws-preflight:dev` (also `:stage` / `:prod`)
+- Require the avatar cache flag to be disabled: `$env:WS_LOAD_REQUIRE_CACHE_DISABLED = '1'`
+- Dev: `npm run test:ws-load:dev`
+- Stage: `npm run test:ws-load:stage`
+- Prod: `npm run test:ws-load:prod`
+- Setup, metrics, reports and protocol assumptions: [WebSocket load testing](docs/websocket-load-testing.md)
+- Current English PDF workload, 25 questions and answer key: [Aurelian Harbor Trust](docs/ws-load-aurelian-questions.md)
+- Two verified questions for parallel sessions: set `WS_LOAD_PARALLEL_QUESTIONS=2` and `WS_LOAD_PARALLEL_QUESTION_IDS` after reviewing the single-session answers. The session language defaults to `en`.
+
 ## Notes
 - Several UI/audio specs force `headless: false`, so a browser window will open i hope.
 - WebRTC/audio specs use `--use-fake-ui-for-media-stream` to avoid permission prompts.

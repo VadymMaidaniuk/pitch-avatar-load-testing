@@ -1,0 +1,208 @@
+{
+  "sourceFile": "KB_Aurelian_Harbor_Trust_Corporate_Statute_and_Governance_Code_2026_EN.pdf",
+  "sourceSha256": "8b1c23301c39c24c0ce0d0a161b98df408a0211a1013b5b85728a5ecb508aa91",
+  "language": "en",
+  "validationStatus": "Grounded in the PDF; not yet verified against the new avatar links",
+  "questions": [
+    {
+      "id": 1,
+      "page": 2,
+      "section": "02. Company Objectives",
+      "question": "According to the Aurelian Harbor Trust statute, what are the three main objectives of the company?",
+      "expectedAnswer": "Maintain supply chain resilience, protect clients from operational disruptions, and allocate capital among port projects in a disciplined manner.",
+      "sourceExcerpt": "The company operates to maintain the resilience of supply chains, protect clients from operational disruptions, and allocate capital among port projects in a disciplined manner."
+    },
+    {
+      "id": 2,
+      "page": 3,
+      "section": "03. Shares and Classes of Ownership Interests",
+      "question": "What are the three classes of ownership interests in Aurelian Harbor Trust, and how is each class described?",
+      "expectedAnswer": "Class A ordinary interests, Class B long-term interests, and Class C non-voting observer interests.",
+      "sourceExcerpt": "The authorized capital is divided into Class A ordinary interests, Class B long-term interests, and Class C non-voting observer interests."
+    },
+    {
+      "id": 3,
+      "page": 4,
+      "section": "04. Board of Governors",
+      "question": "How many governors sit on the Aurelian Harbor Trust board, and which roles or representatives does the statute specifically name?",
+      "expectedAnswer": "Seven governors. Named positions include an independent chair, a financial overseer, an operations overseer, and two representatives of long-term investors. The introductory provision does not identify the other two positions.",
+      "sourceExcerpt": "The board consists of seven governors, including an independent chair, a financial overseer, an operations overseer, and two representatives of long-term investors."
+    },
+    {
+      "id": 4,
+      "page": 5,
+      "section": "05. Reserved Matters",
+      "question": "Which four actions require a special resolution under the Reserved Matters section of the Aurelian Harbor Trust statute?",
+      "expectedAnswer": "Selling terminal assets, issuing new classes of interests, incurring debt above the established limit, and changing the reserve policy.",
+      "sourceExcerpt": "Without a special resolution, terminal assets may not be sold, new classes of interests may not be issued, debt above the established limit may not be incurred, and the reserve policy may not be changed."
+    },
+    {
+      "id": 5,
+      "page": 6,
+      "section": "06. Audit Committee",
+      "question": "What are the audit committee's three main responsibilities under the Aurelian Harbor Trust statute?",
+      "expectedAnswer": "Approve the annual audit plan, review material findings raised by control personnel, and monitor implementation of recommendations to management.",
+      "sourceExcerpt": "The audit committee approves the annual audit plan, reviews material findings raised by control personnel, and monitors the implementation of recommendations to management."
+    },
+    {
+      "id": 6,
+      "page": 7,
+      "section": "07. Risk Committee",
+      "question": "Which risk categories must the Aurelian Harbor Trust risk committee record, and what thresholds must it establish?",
+      "expectedAnswer": "Operational, credit, climate, and contractual risks. It establishes escalation thresholds; the section does not state numerical values for those thresholds.",
+      "sourceExcerpt": "The risk committee maintains a register of operational, credit, climate, and contractual risks and establishes escalation thresholds."
+    },
+    {
+      "id": 7,
+      "page": 8,
+      "section": "08. Financial Discipline",
+      "question": "What minimum liquidity reserve must Aurelian Harbor Trust maintain, how is it calculated, and what separate reserve is also required?",
+      "expectedAnswer": "A minimum liquidity reserve equal to 14 percent of annual operating expenses, plus a separate reserve for insurance deductibles.",
+      "sourceExcerpt": "The company maintains a minimum liquidity reserve equal to 14 percent of annual operating expenses and a separate reserve for insurance deductibles."
+    },
+    {
+      "id": 8,
+      "page": 9,
+      "section": "09. Conflict of Interest Policy",
+      "question": "To whom must a transaction involving a conflict of interest be disclosed at Aurelian Harbor Trust, and how far in advance?",
+      "expectedAnswer": "To the board secretary at least ten business days before the transaction is considered.",
+      "sourceExcerpt": "Any transaction involving a conflict of interest must be disclosed to the board secretary at least ten business days before it is considered."
+    },
+    {
+      "id": 9,
+      "page": 10,
+      "section": "10. Operating Standards",
+      "question": "Which three operational preparedness documents must the Aurelian Harbor Trust management team maintain?",
+      "expectedAnswer": "A register of critical suppliers, a business continuity plan, and an annual schedule of drills.",
+      "sourceExcerpt": "The management team must maintain a register of critical suppliers, a business continuity plan, and an annual schedule of drills."
+    },
+    {
+      "id": 10,
+      "page": 11,
+      "section": "11. Members' Rights",
+      "question": "Which reports and information are Aurelian Harbor Trust members entitled to receive under the Members' Rights section?",
+      "expectedAnswer": "A quarterly management report, annual financial statements, and a summary of board decisions.",
+      "sourceExcerpt": "Members have the right to receive a quarterly management report, annual financial statements, and a summary of board decisions."
+    },
+    {
+      "id": 11,
+      "page": 12,
+      "section": "12. Members' Meetings",
+      "question": "In which month is the regular annual members' meeting held at Aurelian Harbor Trust, and who may convene an extraordinary meeting?",
+      "expectedAnswer": "The regular annual meeting is in April. The chair or members holding an interest of at least 18 percent may convene an extraordinary meeting.",
+      "sourceExcerpt": "The regular annual meeting is held in April, and an extraordinary meeting may be convened by the chair or by members holding an interest of at least 18 percent."
+    },
+    {
+      "id": 12,
+      "page": 13,
+      "section": "13. Dividends and Distributions",
+      "question": "What three conditions must be satisfied before Aurelian Harbor Trust may make distributions?",
+      "expectedAnswer": "The liquidity reserve must be confirmed, debt covenants must be met, and a forecast for two quarters must be approved.",
+      "sourceExcerpt": "Distributions are permitted only after the liquidity reserve has been confirmed, debt covenants have been met, and a forecast for two quarters has been approved."
+    },
+    {
+      "id": 13,
+      "page": 14,
+      "section": "14. Code of Conduct",
+      "question": "What duties does the Aurelian Harbor Trust Code of Conduct place on employees regarding good faith, trade secrets, and client data?",
+      "expectedAnswer": "Act in good faith, preserve trade secrets, and refrain from using client data outside approved workflows.",
+      "sourceExcerpt": "Employees must act in good faith, preserve trade secrets, and refrain from using client data outside approved workflows."
+    },
+    {
+      "id": 14,
+      "page": 15,
+      "section": "15. Contractual Obligations",
+      "question": "Which three types of provisions must be included in Aurelian Harbor Trust standard contracts?",
+      "expectedAnswer": "Provisions on service continuity, limitation of liability, and the procedure for handling disputed charges.",
+      "sourceExcerpt": "Standard contracts must contain provisions on service continuity, limitation of liability, and the procedure for handling disputed charges."
+    },
+    {
+      "id": 15,
+      "page": 16,
+      "section": "16. Data and Documents",
+      "question": "In which system are Aurelian Harbor Trust corporate records stored, and who signs the board minutes?",
+      "expectedAnswer": "Records are stored in HarborLedger. Board minutes are signed by the chair and the corporate secretary.",
+      "sourceExcerpt": "Corporate records are stored in the HarborLedger system, and board minutes are signed by the chair and the corporate secretary."
+    },
+    {
+      "id": 16,
+      "page": 17,
+      "section": "17. Internal Control",
+      "question": "Who confirms Aurelian Harbor Trust internal control procedures, how often, and for which four areas?",
+      "expectedAnswer": "Heads of functions confirm the procedures quarterly for payments, procurement, system access, and contract management.",
+      "sourceExcerpt": "Heads of functions confirm the control procedures for payments, procurement, system access, and contract management on a quarterly basis."
+    },
+    {
+      "id": 17,
+      "page": 18,
+      "section": "18. Transactions Subject to Thresholds",
+      "question": "What transaction value triggers additional assessments at Aurelian Harbor Trust, and which two assessments are required?",
+      "expectedAnswer": "Transactions exceeding 7.5 million dollars require a preliminary financial opinion and a separate assessment of their operational impact.",
+      "sourceExcerpt": "Transactions exceeding 7.5 million dollars require a preliminary financial opinion and a separate assessment of their operational impact."
+    },
+    {
+      "id": 18,
+      "page": 19,
+      "section": "19. Insurance",
+      "question": "Which four types of insurance does Aurelian Harbor Trust maintain, and how often are coverage limits compared?",
+      "expectedAnswer": "Property, civil liability, cyber, and directors' insurance. Coverage limits are compared annually.",
+      "sourceExcerpt": "The company maintains property, civil liability, cyber, and directors' insurance, with an annual comparison of coverage limits."
+    },
+    {
+      "id": 19,
+      "page": 20,
+      "section": "20. Management Succession",
+      "question": "When is the Aurelian Harbor Trust succession plan updated, and which functions must have interim leads?",
+      "expectedAnswer": "It is updated in November and includes interim leads for the finance, operations, and legal functions.",
+      "sourceExcerpt": "The succession plan is updated in November and includes interim leads for the finance, operations, and legal functions."
+    },
+    {
+      "id": 20,
+      "page": 21,
+      "section": "21. Integrity Program",
+      "question": "Who maintains the Aurelian Harbor Trust channel for reporting violations, and who receives what type of periodic summary?",
+      "expectedAnswer": "The board secretary maintains the reporting channel. The audit committee receives an anonymized quarterly summary.",
+      "sourceExcerpt": "The board secretary maintains a channel for reporting violations, and the audit committee receives an anonymized quarterly summary."
+    },
+    {
+      "id": 21,
+      "page": 22,
+      "section": "22. Environmental Obligations",
+      "question": "Which three environmental factors must the Aurelian Harbor Trust board assess when approving capital projects?",
+      "expectedAnswer": "Energy intensity, the impact on water resources, and the waste reduction plan.",
+      "sourceExcerpt": "When approving capital projects, the board assesses energy intensity, the impact on water resources, and the waste reduction plan."
+    },
+    {
+      "id": 22,
+      "page": 23,
+      "section": "23. Arbitration and Disputes",
+      "question": "What is the required sequence for resolving Aurelian Harbor Trust corporate disputes before and including arbitration?",
+      "expectedAnswer": "Negotiation first, then mediation, and only thereafter arbitration under the rules of the selected center.",
+      "sourceExcerpt": "Corporate disputes are first referred to negotiation, then to mediation, and only thereafter to arbitration under the rules of the selected center."
+    },
+    {
+      "id": 23,
+      "page": 24,
+      "section": "24. Amendments to the Statute",
+      "question": "What voting approval threshold is required to amend the Aurelian Harbor Trust statute, and which class of holders must receive separate notification?",
+      "expectedAnswer": "Approval by holders of at least 72 percent of the voting interests, with separate notification of Class B holders.",
+      "sourceExcerpt": "Amendments to the statute require approval by holders of at least 72 percent of the voting interests and separate notification of Class B holders."
+    },
+    {
+      "id": 24,
+      "page": 25,
+      "section": "25. Liquidation",
+      "question": "What must happen before assets can be distributed in a voluntary liquidation of Aurelian Harbor Trust?",
+      "expectedAnswer": "Obligations must be satisfied, client contracts must be closed out, and disputed amounts must be reserved.",
+      "sourceExcerpt": "In a voluntary liquidation, assets are distributed after obligations have been satisfied, client contracts have been closed out, and disputed amounts have been reserved."
+    },
+    {
+      "id": 25,
+      "page": 30,
+      "section": "30. Final Provisions",
+      "question": "Whose signatures are required for the Aurelian Harbor Trust statute to take effect?",
+      "expectedAnswer": "The chair, the corporate secretary, and two authorized representatives of the members.",
+      "sourceExcerpt": "This statute takes effect upon signature by the chair, the corporate secretary, and two authorized representatives of the members."
+    }
+  ]
+}

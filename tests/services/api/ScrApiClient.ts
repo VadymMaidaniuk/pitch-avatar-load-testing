@@ -2,11 +2,43 @@ import type { APIRequestContext, APIResponse } from '@playwright/test';
 import { API_BASE_URL, SCR_SHORT_LINK } from '../../helpers/chatConfig';
 import { assertOk } from './apiClientUtils';
 
+export type ScreeningAssistantMetadata = {
+  screeningAssistantId: string;
+  assistantId: string | null;
+  name: string | null;
+  roleName: string | null;
+  languageId: string | null;
+  cacheEnabled: boolean | null;
+};
+
+/** Allowlist public avatar metadata; never retain auth or media-provider credentials. */
+export function readScreeningAssistantMetadata(payload: unknown): ScreeningAssistantMetadata | null {
+  const resources = new Map<string, Record<string, unknown>>();
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return;
+    const item = node as Record<string, unknown>;
+    if (item.type === 'screening-assistants' && item.id != null && item.attributes && typeof item.attributes === 'object') {
+      resources.set(String(item.id), item.attributes as Record<string, unknown>);
+    }
+    for (const value of Object.values(item)) if (value && typeof value === 'object') walk(value);
+  };
+  walk(payload);
+  if (resources.size !== 1) return null;
+  const [id, attributes] = [...resources][0];
+  const string = (key: string) => typeof attributes[key] === 'string' || typeof attributes[key] === 'number' ? String(attributes[key]) : null;
+  return {
+    screeningAssistantId: id, assistantId: string('assistant_id'), name: string('name'),
+    roleName: string('role_name'), languageId: string('language_id'),
+    cacheEnabled: typeof attributes.is_cache_enabled === 'boolean' ? attributes.is_cache_enabled : null,
+  };
+}
+
 export type LoginResult = {
   token: string;
   scrUserID: string;
   screeningStepID?: string;
   languageID: string;
+  avatar: ScreeningAssistantMetadata | null;
 };
 
 const LOGIN_INCLUDE = [
@@ -57,6 +89,7 @@ export class ScrApiClient {
       scrUserID: String(scrUserID),
       screeningStepID: screeningStepID ? String(screeningStepID) : undefined,
       languageID: String(languageID),
+      avatar: readScreeningAssistantMetadata(payload),
     };
   }
 

@@ -1,0 +1,205 @@
+{
+  "sourceFile": "ws-load-aster-role-prompt.txt",
+  "language": "en",
+  "basis": "New fictional prompt-contained facts; independent of presentations and PDFs.",
+  "validationStatus": "Validated on dev, stage and prod on 2026-09-28: all 25 chain answers correct in each environment; the complete load matrix returned 555 correct answers, plus nine correct preflight answers.",
+  "parallelCandidateQuestionIds": [
+    8,
+    14
+  ],
+  "parallelValidatedQuestionIds": [
+    8,
+    14
+  ],
+  "questions": [
+    {
+      "id": 1,
+      "factId": 1,
+      "question": "What three types of goods does Aster Harbor Services transport?",
+      "expectedAnswer": "Medical supplies, laboratory reagents, and food samples.",
+      "sourceExcerpt": "Aster Harbor Services specializes in temperature-controlled transport of medical supplies, laboratory reagents, and food samples."
+    },
+    {
+      "id": 2,
+      "factId": 2,
+      "question": "When was Aster Harbor Services founded, and where are its headquarters?",
+      "expectedAnswer": "It was founded in 2019 and is headquartered in Portmere.",
+      "sourceExcerpt": "The company was founded in 2019. Its headquarters are in the fictional city of Portmere."
+    },
+    {
+      "id": 3,
+      "factId": 3,
+      "question": "Where are the three Aster Harbor Services transport hubs?",
+      "expectedAnswer": "Portmere, Lakeford, and Westhaven.",
+      "sourceExcerpt": "Its three transport hubs are Portmere, Lakeford, and Westhaven."
+    },
+    {
+      "id": 4,
+      "factId": 4,
+      "question": "What are the operating hours of the hubs and the customer care team?",
+      "expectedAnswer": "The hubs operate 24 hours a day, seven days a week. Customer care works Monday through Friday, 08:00 to 18:00 UTC.",
+      "sourceExcerpt": "All hubs operate 24 hours a day, seven days a week. The customer care team works Monday through Friday from 08:00 to 18:00 UTC."
+    },
+    {
+      "id": 5,
+      "factId": 5,
+      "question": "What are the three service plans, and what does the Dedicated plan provide?",
+      "expectedAnswer": "Essential, Priority, and Dedicated. Dedicated provides a vehicle and a route reserved for one customer.",
+      "sourceExcerpt": "The three service plans are Essential, Priority, and Dedicated. The Dedicated plan provides a vehicle and a route reserved for one customer."
+    },
+    {
+      "id": 6,
+      "factId": 6,
+      "question": "When are Essential shipments collected, and what is the booking cutoff for same-day Priority collection?",
+      "expectedAnswer": "Essential shipments are collected on the next business day. Priority shipments qualify for same-day collection when booked before 10:00 UTC.",
+      "sourceExcerpt": "Essential shipments are collected on the next business day. Priority shipments qualify for same-day collection when booked before 10:00 UTC."
+    },
+    {
+      "id": 7,
+      "factId": 7,
+      "question": "What are the maximum parcel weight and longest-side length for Priority shipments?",
+      "expectedAnswer": "40 kilograms and 120 centimeters.",
+      "sourceExcerpt": "Each Priority parcel may weigh up to 40 kilograms, and its longest side may measure up to 120 centimeters."
+    },
+    {
+      "id": 8,
+      "factId": 8,
+      "question": "What temperature range is maintained for refrigerated shipments, and how often is the temperature recorded?",
+      "expectedAnswer": "Between 2 and 8 degrees Celsius, with a reading every five minutes.",
+      "sourceExcerpt": "Refrigerated shipments are maintained between 2 and 8 degrees Celsius. Temperature sensors record a reading every five minutes."
+    },
+    {
+      "id": 9,
+      "factId": 9,
+      "question": "Which portal provides shipment tracking, and what are the four shipment statuses in order?",
+      "expectedAnswer": "HarborTrack. Booked, Collected, In Transit, Delivered.",
+      "sourceExcerpt": "Customers track shipments in the HarborTrack portal. The four shipment statuses, in order, are Booked, Collected, In Transit, and Delivered."
+    },
+    {
+      "id": 10,
+      "factId": 10,
+      "question": "What does proof of delivery contain, and when does it appear in HarborTrack?",
+      "expectedAnswer": "The recipient's name, signature, and delivery time. It appears within 30 minutes of delivery.",
+      "sourceExcerpt": "Proof of delivery includes the recipient's name, signature, and delivery time. It appears in HarborTrack within 30 minutes of delivery."
+    },
+    {
+      "id": 11,
+      "factId": 11,
+      "question": "What information is required for onboarding, and how long does setup take after it is received?",
+      "expectedAnswer": "Company name, billing address, and primary operations contact. Setup takes two business days after all three are received.",
+      "sourceExcerpt": "Onboarding requires the customer's company name, billing address, and primary operations contact. Setup takes two business days after all three details are received."
+    },
+    {
+      "id": 12,
+      "factId": 12,
+      "question": "Who conducts each customer's service check, and how often?",
+      "expectedAnswer": "The customer's assigned account manager conducts a service check once a month.",
+      "sourceExcerpt": "Every customer has an assigned account manager. The account manager conducts a service check once a month."
+    },
+    {
+      "id": 13,
+      "factId": 13,
+      "question": "How can operational incidents be reported, and how quickly must critical incidents be acknowledged?",
+      "expectedAnswer": "Through HarborTrack or the 24-hour incident hotline. Critical incidents must be acknowledged within 15 minutes.",
+      "sourceExcerpt": "Operational incidents can be reported through HarborTrack or the 24-hour incident hotline. Critical incidents must be acknowledged within 15 minutes."
+    },
+    {
+      "id": 14,
+      "factId": 14,
+      "question": "When must an unresolved critical incident be escalated, and who receives the escalation?",
+      "expectedAnswer": "After it remains unresolved for 30 minutes, to the Duty Operations Manager.",
+      "sourceExcerpt": "A critical incident that remains unresolved for 30 minutes must be escalated to the Duty Operations Manager."
+    },
+    {
+      "id": 15,
+      "factId": 15,
+      "question": "How often does a customer receive an updated estimated arrival time during an active delivery delay?",
+      "expectedAnswer": "Every 20 minutes.",
+      "sourceExcerpt": "During an active delivery delay, the customer receives an updated estimated arrival time every 20 minutes."
+    },
+    {
+      "id": 16,
+      "factId": 16,
+      "question": "How far in advance must a planned route change be requested, and who approves it?",
+      "expectedAnswer": "At least 48 hours before collection; the Routing Coordinator approves it.",
+      "sourceExcerpt": "A planned route change must be requested at least 48 hours before collection and approved by the Routing Coordinator."
+    },
+    {
+      "id": 17,
+      "factId": 17,
+      "question": "Where is the backup dispatch center, and how quickly must it be activated after the primary center becomes unavailable?",
+      "expectedAnswer": "At the Lakeford hub, within 45 minutes.",
+      "sourceExcerpt": "The backup dispatch center is at the Lakeford hub. It must be activated within 45 minutes after the primary dispatch center becomes unavailable."
+    },
+    {
+      "id": 18,
+      "factId": 18,
+      "question": "Who calibrates the temperature sensors, and how often?",
+      "expectedAnswer": "Fleet Engineering, every 90 days.",
+      "sourceExcerpt": "Fleet Engineering calibrates temperature sensors every 90 days."
+    },
+    {
+      "id": 19,
+      "factId": 19,
+      "question": "When do drivers first complete cold-chain handling training, and how often do they repeat it?",
+      "expectedAnswer": "Before their first route, then every six months.",
+      "sourceExcerpt": "Drivers complete cold-chain handling training before their first route and repeat it every six months."
+    },
+    {
+      "id": 20,
+      "factId": 20,
+      "question": "What containers and seals are used for standard packaging?",
+      "expectedAnswer": "Reusable insulated containers with tamper-evident seals.",
+      "sourceExcerpt": "Standard packaging consists of reusable insulated containers fitted with tamper-evident seals."
+    },
+    {
+      "id": 21,
+      "factId": 21,
+      "question": "How long are standard shipment records and incident records retained?",
+      "expectedAnswer": "Standard shipment records: 180 days. Incident records: two years.",
+      "sourceExcerpt": "Standard shipment records are retained for 180 days. Incident records are retained for two years."
+    },
+    {
+      "id": 22,
+      "factId": 22,
+      "question": "When is the weekly operations report published, and which three counts does it contain?",
+      "expectedAnswer": "Every Monday at 09:00 UTC. Delivered shipments, on-time deliveries, and temperature excursions.",
+      "sourceExcerpt": "The weekly operations report is published every Monday at 09:00 UTC. It contains the number of delivered shipments, the number of on-time deliveries, and the number of temperature excursions."
+    },
+    {
+      "id": 23,
+      "factId": 23,
+      "question": "How often do customer service reviews take place, and which three metrics do they assess?",
+      "expectedAnswer": "Quarterly. The on-time delivery rate, temperature excursions, and mean incident resolution time.",
+      "sourceExcerpt": "Customer service reviews take place quarterly. They assess the on-time delivery rate, temperature excursions, and mean incident resolution time."
+    },
+    {
+      "id": 24,
+      "factId": 24,
+      "question": "Who reviews suppliers, how often, and against which three criteria?",
+      "expectedAnswer": "The Quality team, every 12 months. Delivery reliability, temperature safety, and completeness of documentation.",
+      "sourceExcerpt": "The Quality team reviews suppliers every 12 months. It assesses delivery reliability, temperature safety, and completeness of documentation."
+    },
+    {
+      "id": 25,
+      "factId": 25,
+      "question": "In which months are business continuity drills held, who leads them, and when must findings be reviewed?",
+      "expectedAnswer": "March and September; the Head of Operations; within ten business days after each drill.",
+      "sourceExcerpt": "Business continuity drills take place in March and September. The Head of Operations leads them, and findings must be reviewed within ten business days after each drill."
+    }
+  ],
+  "sourceSha256": "c3c63d3e666af8b874b6b96aadd56e435e80e3f7981360d1103082adeef84e63",
+  "liveValidation": {
+    "date": "2026-09-28",
+    "targets": {
+      "dev": "https://slides-dev.pitchavatar.com/1eipe",
+      "stage": "https://slides-staging.pitchavatar.com/wwqbg",
+      "prod": "https://slides.pitchavatar.com/suwoy"
+    },
+    "measuredQuestions": 555,
+    "correctAnswers": 555,
+    "failedQuestions": 0,
+    "skippedQuestions": 0,
+    "summaryFile": "test-results/ws-load-aster-2026-09-28/summary.json"
+  }
+}

@@ -24,7 +24,7 @@ const CHAT_ENV: EnvName = rawEnv.toLowerCase().includes('stage')
     ? 'dev'
     : 'prod';
 
-const ENV_DEFAULTS: Record<
+export const ENV_DEFAULTS: Record<
   EnvName,
   { chatUrl: string; shortLink: string; apiBase: string; wsBase: string }
 > = {
